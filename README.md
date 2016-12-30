@@ -8,6 +8,10 @@ with any user-friendly tools. Also, this *won't* let you downgrade or anything
 requiring ARM9 access without another bug. This just gives access to all SVCs
 on ARM11.
 
+# Building
+
+Just run `make` with devkitpro and ctrulib installed. This is a normal homebrew application that is meant to be launched as a 3dsx.
+
 # Info
 
 This is currently an alpha targeted to N3DS 11.2 only.
