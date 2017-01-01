@@ -20,10 +20,6 @@
 #define CURRENT_PROCESS 0xFFFF9004
 #define HANDLE_TABLE_OFFSET 0xDC
 
-/* 11.2 only */
-#define HANDLE_LOOKUP 0xFFF18CF4
-#define RANDOM_STUB 0xFFF1B65C
-
 static u32 *writeint_arg_addr;
 static u32 writeint_arg_value;
 static u32 *readint_arg;
@@ -33,7 +29,7 @@ static void *memcpy_dst;
 static u64 memcpy_len;
 static Handle get_object_handle = 0;
 static void *get_object_ret = NULL;
-static void *(*handle_lookup_kern)(void *, u32) = (void *)HANDLE_LOOKUP;
+void *(*handle_lookup_kern)(void *, u32);
 
 static void writeint() { *writeint_arg_addr = writeint_arg_value; }
 
@@ -145,14 +141,14 @@ void *get_object_addr(Handle handle) {
   return get_object_ret;
 }
 
-static unsigned int (*RandomStub)(u32 *, u32 *) = (void *)RANDOM_STUB;
+unsigned int (*RandomStub)(u32 *, u32 *);
 static void *randomstub_arg = NULL;
 
 static void randomstub_wrapper() {
   if (!randomstub_arg) {
     return;
   }
-  RandomStub(randomstub_arg, (void *)RANDOM_STUB);
+  RandomStub(randomstub_arg, (void*)RandomStub);
 }
 
 void kernel_randomstub(u32 *arg) {
