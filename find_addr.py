@@ -12,7 +12,7 @@ def search(binary, pattern, skip=0, masks=None, return_offset=False):
         if b != pattern:
             continue
         if return_offset:
-            return idx
+            return idx + skip
         return struct.unpack('I', (binary[idx + skip: idx + skip + 4]))[0]
 
 def find_handle_lookup(arm9bin):
@@ -43,6 +43,27 @@ def find_random_stub(arm9bin):
                   return_offset=True)
     return addr
 
+def find_svc_handler_table(arm9bin):
+    # 0F 00 BD E8       LDMFD   SP!, {R0-R3}
+    # 24 80 9D E5       LDR     R8, [SP, #0x24]
+    # 00 00 58 E3       CMP     R8, #0
+    # 28 D0 8D 02       ADDEQ   SP, SP, #0x28
+    # FF 50 BD 18       LDMNEFD SP!, {R0-R7, R12, LR}
+    # 30 E0 DD E5       LDRB    LR, [SP, #x30]
+    # EF FF FF EA       B       0x1FF822CC
+    # 00 00 00 00       ; svc table start
+    # 4C 36 F0 FF
+    # ...
+    addr = search(arm9bin,
+                  '\x0f\x00\xbd\xe8\x24\x80\x9d\xe5\x00\x00\x58\xe3\x28\xd0\x8d\x02'
+                  '\xff\x50\xbd\x18\x30\xe0\xdd\xe5\xef\xff\xff\xea\x00\x00\x00\x00'
+                  '\x00\x00\xf0\xff\x00\x00\xf0\xff\x00\x00\xf0\xff\x00\x00\xf0\xff',
+                  skip=0x1C,
+                  masks=((0x20, 0xfff00000), (0x24, 0xfff00000),
+                         (0x28, 0xfff00000), (0x2c, 0xfff00000)),
+                  return_offset=True)
+    return addr
+
 def hex_or_dead(addr):
     return hex(addr or 0xdeadbabe)
 
@@ -60,7 +81,10 @@ with open(sys.argv[1], 'rb') as r:
     arm11_bin_offset = struct.unpack('I', arm9bin[0x70:0x74])[0]
     arm11_area = struct.unpack('I', arm9bin[0x74:0x78])[0]
     arm11_offset = arm11_area - arm11_bin_offset
+    svc_handler_table = find_svc_handler_table(arm9bin)
     handle_lookup = find_handle_lookup(arm9bin)
     random_stub = find_random_stub(arm9bin)
+    print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
+                                                                    arm11_offset))
     print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_offset))
     print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_offset))
