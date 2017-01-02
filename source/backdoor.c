@@ -61,6 +61,22 @@ u32 kreadint(u32 *addr) {
   return readint_res;
 }
 
+u32 kreadint_real(u32 *addr) {
+  if (addr == 0) {
+    printf("kreadint(NULL) -> 0\n");
+    return 0;
+  }
+  readint_arg = addr;
+  svcGlobalBackdoor((s32(*)(void)) & readint);
+  return readint_res;
+}
+
+void kwriteint_real(u32 *addr, u32 value) {
+  writeint_arg_addr = addr;
+  writeint_arg_value = value;
+  svcGlobalBackdoor((s32(*)(void)) & writeint);
+}
+
 bool mybackdoor_installed() {
   /* kwriteint won't have a side effect if it's not installed.
    * that svc is normally callable by userspace but returns
