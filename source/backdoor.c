@@ -12,17 +12,10 @@
 /* [L2L] VA fff00000..fff20000 -> PA 1ff80000..1ffa0000 [  X ] [ Priv: R-, User: -- ] */
 /* [L1 ] VA dff00000..e0000000 -> PA 1ff00000..20000000 [ XN ] [ Priv: RW, User: -- ] */
 //
-#define SVC_HANDLER_TABLE 0xFFF0230C
-#define SVC_HANDLER_TABLE_PA (SVC_HANDLER_TABLE - 0xfff00000 + 0x1ff80000)
-#define SVC_HANDLER_TABLE_WRITABLE (SVC_HANDLER_TABLE_PA - 0x1ff00000 + 0xdff00000)
 /* overwrite SendSyncRequest3 since it's stubbed but we always have permission */
 #define SEND_SYNC_REQUEST3 0x30
 #define CURRENT_PROCESS 0xFFFF9004
 #define HANDLE_TABLE_OFFSET 0xDC
-
-/* 11.2 only */
-#define HANDLE_LOOKUP 0xFFF18CF4
-#define RANDOM_STUB 0xFFF1B65C
 
 static u32 *writeint_arg_addr;
 static u32 writeint_arg_value;
@@ -33,7 +26,8 @@ static void *memcpy_dst;
 static u64 memcpy_len;
 static Handle get_object_handle = 0;
 static void *get_object_ret = NULL;
-static void *(*handle_lookup_kern)(void *, u32) = (void *)HANDLE_LOOKUP;
+void *(*handle_lookup_kern)(void *, u32);
+u32 *svc_handler_table_writable;
 
 static void writeint() { *writeint_arg_addr = writeint_arg_value; }
 
@@ -145,14 +139,14 @@ void *get_object_addr(Handle handle) {
   return get_object_ret;
 }
 
-static unsigned int (*RandomStub)(u32 *, u32 *) = (void *)RANDOM_STUB;
+unsigned int (*RandomStub)(u32 *, u32 *);
 static void *randomstub_arg = NULL;
 
 static void randomstub_wrapper() {
   if (!randomstub_arg) {
     return;
   }
-  RandomStub(randomstub_arg, (void *)RANDOM_STUB);
+  RandomStub(randomstub_arg, (void*)RandomStub);
 }
 
 void kernel_randomstub(u32 *arg) {
@@ -170,7 +164,7 @@ bool backdoor_installed = false;
 
 void install_kernel_backdoor() {
   backdoor_installed = true;
-  u32 *svc_table = (u32 *)SVC_HANDLER_TABLE_WRITABLE;
+  u32 *svc_table = svc_handler_table_writable;
   svc_table[SEND_SYNC_REQUEST3] = (u32)&kernel_backdoor;
 }
 
