@@ -1,9 +1,9 @@
 import sys
 import struct
 
-def search(binary, pattern, skip=0, masks=None, return_offset=False):
+def search(binary, pattern, skip=0, masks=None, return_offset=False, start_offset=0):
     pattern_len = len(pattern)
-    for idx in xrange(len(binary) - pattern_len):
+    for idx in xrange(start_offset, len(binary) - pattern_len):
         b = binary[idx : idx + pattern_len]
         if masks:
             for offset, maskbit in masks:
@@ -53,7 +53,6 @@ def find_svc_handler_table(binary):
     # EF FF FF EA       B       0x1FF822CC
     # 00 00 00 00       ; svc table start
     # 4C 36 F0 FF
-    # ...
     addr = search(binary,
                   '\x0f\x00\xbd\xe8\x24\x80\x9d\xe5\x00\x00\x58\xe3\x28\xd0\x8d\x02'
                   '\xff\x50\xbd\x18\x30\xe0\xdd\xe5\xef\xff\xff\xea\x00\x00\x00\x00'
@@ -62,6 +61,20 @@ def find_svc_handler_table(binary):
                   masks=((0x20, 0xfff00000), (0x24, 0xfff00000),
                          (0x28, 0xfff00000), (0x2c, 0xfff00000)),
                   return_offset=True)
+    return addr
+
+def find_free_40_bytes_area(binary):
+    # 00 B0 9C E5
+    # 0A B0 0B E0
+    exception_table = search(binary, '\x00\xb0\x9c\xe5\x0a\xb0\x0b\xe0',
+                             return_offset=True)
+    # FF FF FF FF
+    # ...
+    # FF FF FF FF
+    addr = search(binary,
+                  '\xff' * 40,
+                  return_offset=True,
+                  start_offset=exception_table)
     return addr
 
 def hex_or_dead(addr):
@@ -85,7 +98,9 @@ with open(sys.argv[1], 'rb') as r:
     svc_handler_table = find_svc_handler_table(arm11bin)
     handle_lookup = find_handle_lookup(arm11bin)
     random_stub = find_random_stub(arm11bin)
+    free_area = find_free_40_bytes_area(arm11bin)
     print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
                                                                     arm11_offset))
     print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_offset))
     print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_offset))
+    print '#define FREE_40_AREA %s' % hex_or_dead(convert_addr(free_area, arm11_offset))
