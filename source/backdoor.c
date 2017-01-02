@@ -213,10 +213,12 @@ static u8 backdoor_code[40] =
     0x11, 0xFF, 0x2F, 0xE1 };
 
 static void kernel_finalize_global_backdoor() {
-  /* write to writable portion */
-  memcpy(svc_7b_free_area_writable, backdoor_code, sizeof(backdoor_code));
-  svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_7b_free_area;
-  svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_7b_free_area;
+  if (svc_handler_table_writable[SVC_BACKDOOR_NUM] == 0) {
+    /* write to writable portion */
+    memcpy(svc_7b_free_area_writable, backdoor_code, sizeof(backdoor_code));
+    svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_7b_free_area;
+  }
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_handler_table_writable[SVC_BACKDOOR_NUM];
 }
 
 bool finalize_global_backdoor() {
