@@ -165,8 +165,8 @@ void *send_sync_request3_orig = NULL;
 
 void install_kernel_backdoor() {
   backdoor_installed = true;
-  send_sync_request3_orig = svc_table[SEND_SYNC_REQUEST3];
-  svc_table[SEND_SYNC_REQUEST3] = &kernel_backdoor;
+  send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = &kernel_backdoor;
 }
 
 bool get_timer_value(Handle timer, u64 *initial, u64 *interval) {
