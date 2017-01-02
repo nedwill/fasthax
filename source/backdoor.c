@@ -166,11 +166,13 @@ static Result kernel_backdoor(s32 (*callback)(void)) { return callback(); }
  * access by some other means.
  */
 void *send_sync_request3_orig = NULL;
+void *svc_backdoor_orig = NULL;
 
 /* must be called in kernel mode */
 void install_global_backdoor() {
   if (send_sync_request3_orig == NULL) {
     send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
+    svc_backdoor_orig = svc_handler_table_writable[SVC_BACKDOOR_NUM];
   }
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = &kernel_backdoor;
 }
@@ -178,7 +180,7 @@ void install_global_backdoor() {
 /* must be called in kernel mode */
 void uninstall_global_backdoor() {
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = send_sync_request3_orig;
-  svc_handler_table_writable[SVC_BACKDOOR_NUM] = NULL;
+  svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_backdoor_orig;
 }
 
 /* TODO we should use a define to translate, not store both addresses */
