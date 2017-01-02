@@ -79,11 +79,12 @@ if len(sys.argv) < 2:
 with open(sys.argv[1], 'rb') as r:
     native_firm = r.read()
     arm11_bin_offset = struct.unpack('I', native_firm[0x70:0x74])[0]
-    arm11_area = struct.unpack('I', native_firm[0x74:0x78])[0]
-    arm11_offset = arm11_area - arm11_bin_offset
-    svc_handler_table = find_svc_handler_table(native_firm)
-    handle_lookup = find_handle_lookup(native_firm)
-    random_stub = find_random_stub(native_firm)
+    arm11_offset = struct.unpack('I', native_firm[0x74:0x78])[0]
+    arm11_size = struct.unpack('I', native_firm[0x78:0x7c])[0]
+    arm11bin = native_firm[arm11_bin_offset:arm11_bin_offset + arm11_size]
+    svc_handler_table = find_svc_handler_table(arm11bin)
+    handle_lookup = find_handle_lookup(arm11bin)
+    random_stub = find_random_stub(arm11bin)
     print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
                                                                     arm11_offset))
     print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_offset))
