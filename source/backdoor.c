@@ -160,13 +160,25 @@ void kernel_randomstub(u32 *arg) {
 
 static Result kernel_backdoor(s32 (*callback)(void)) { return callback(); }
 
-bool backdoor_installed = false;
+bool _tmp_backdoor_installed = false;
 void *send_sync_request3_orig = NULL;
 
-void install_kernel_backdoor() {
-  backdoor_installed = true;
+/* must be called in kernel mode */
+void install_tmp_backdoor() {
+  _tmp_backdoor_installed = true;
   send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = &kernel_backdoor;
+}
+
+/* must be called in kernel mode */
+void uninstall_tmp_backdoor() {
+  _tmp_backdoor_installed = false;
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = send_sync_request3_orig;
+}
+
+bool tmp_backdoor_installed() {
+  /* TODO: actually do an SVC to check this */
+  return _tmp_backdoor_installed;
 }
 
 bool get_timer_value(Handle timer, u64 *initial, u64 *interval) {

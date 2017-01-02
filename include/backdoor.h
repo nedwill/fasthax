@@ -23,7 +23,8 @@ bool get_timer_value(Handle timer, u64 *initial, u64 *interval);
 /* Real backdoor */
 void kwriteint_real(u32 *addr, u32 value);
 bool realbackdoor_installed(void);
-/* Used in real exploit. */
-void install_kernel_backdoor(void);
+/* Used in real exploit, must be called from kernel mode. */
+void install_tmp_backdoor(void);
+void uninstall_tmp_backdoor(void);
 
 #endif /* __BACKDOOR_H */
