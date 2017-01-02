@@ -64,18 +64,26 @@ def find_svc_handler_table(binary):
     return addr
 
 def find_free_40_bytes_area(binary):
-    # 00 B0 9C E5
-    # 0A B0 0B E0
-    exception_table = search(binary, '\x00\xb0\x9c\xe5\x0a\xb0\x0b\xe0',
-                             return_offset=True)
-    # FF FF FF FF
-    # ...
-    # FF FF FF FF
+    # 0C 10 90 E5       LDR     R1, [R0, #0xC]
+    # 04 00 A0 E1       MOV     R0, R4
+    # 31 FF 2F E1       BLX     R1
+    # 04 10 A0 E1       MOV     R1, R4
+    # 08 00 9F E5       LDR     R0, =0xFFF33340
+    # 10 40 BD E8       LDMFM   SP!, {R4, LR}
+    # 7E BB FF EA       B       0x1FF9C5E4
+    # 28 33 F3 FF
+    # 40 33 F3 FF
+    # FF FF FF FF       ; target
     addr = search(binary,
-                  '\xff' * 40,
-                  return_offset=True,
-                  start_offset=exception_table)
-    return addr
+                  '\x0c\x10\x90\xe5\x04\x00\xa0\xe1\x31\xff\x2f\xe1\x04\x10\xa0\xe1'
+                  '\x08\x00\x9f\xe5\x10\x40\xbd\xe8\x00\x00\xff\xea\x00\x00\xf3\xff'
+                  '\x00\x00\xf3\xff\xff\xff\xff\xff',
+                  skip=0x24,
+                  masks=((0x18, 0xeaff0000), (0x1c, 0xfff30000), (0x20, 0xfff30000)),
+                  return_offset=True)
+
+    if binary[addr:addr + 40] == ('\xff' * 40):
+        return addr
 
 def hex_or_dead(addr):
     return hex(addr or 0xdeadbabe)
