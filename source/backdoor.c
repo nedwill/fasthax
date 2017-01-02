@@ -169,7 +169,9 @@ void *send_sync_request3_orig = NULL;
 
 /* must be called in kernel mode */
 void install_global_backdoor() {
-  send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
+  if (send_sync_request3_orig == NULL) {
+    send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
+  }
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = &kernel_backdoor;
 }
 
