@@ -14,6 +14,7 @@
 //
 /* overwrite SendSyncRequest3 since it's stubbed but we always have permission */
 #define SEND_SYNC_REQUEST3 0x30
+#define SVC_BACKDOOR_NUM 0x7B
 #define CURRENT_PROCESS 0xFFFF9004
 #define HANDLE_TABLE_OFFSET 0xDC
 
@@ -84,11 +85,6 @@ bool global_backdoor_installed() {
   static u32 installed = 0;
   kwriteint_global_backdoor(&installed, 1);
   return installed;
-}
-
-bool finalize_global_backdoor() {
-  /* TODO: unimplemented */
-  return false;
 }
 
 void print_array_wait(char *name, u32 *addr, u32 size) {
@@ -165,6 +161,10 @@ void kernel_randomstub(u32 *arg) {
 
 static Result kernel_backdoor(s32 (*callback)(void)) { return callback(); }
 
+/* currently unused. if people don't like the unprivileged backdoor
+ * we can use this to restore send_synd_request3 and give kernel
+ * access by some other means.
+ */
 void *send_sync_request3_orig = NULL;
 
 /* must be called in kernel mode */
@@ -176,6 +176,34 @@ void install_global_backdoor() {
 /* must be called in kernel mode */
 void uninstall_global_backdoor() {
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = send_sync_request3_orig;
+  svc_handler_table_writable[SVC_BACKDOOR_NUM] = NULL;
+}
+
+/* TODO we should use a define to translate, not store both addresses */
+/* call this */
+void *svc_7b_free_area;
+/* write this */
+void *svc_7b_free_area_writable;
+
+/* adapted from Luma, thanks, just rushing to finish this! */
+static u8 backdoor_code[40] =
+  { 0xFF, 0x10, 0xCD, 0xE3, 0x0F, 0x1C, 0x81, 0xE3, 0x28, 0x10, 0x81, 0xE2,
+    0x00, 0x20, 0x91, 0xE5, 0x00, 0x60, 0x22, 0xE9, 0x02, 0xD0, 0xA0, 0xE1,
+    0x30, 0xFF, 0x2F, 0xE1, 0x03, 0x00, 0xBD, 0xE8, 0x00, 0xD0, 0xA0, 0xE1,
+    0x11, 0xFF, 0x2F, 0xE1 };
+
+static void kernel_finalize_global_backdoor() {
+  /* write to writable portion */
+  memcpy(svc_7b_free_area_writable, backdoor_code, sizeof(backdoor_code));
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_7b_free_area;
+  svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_7b_free_area;
+}
+
+bool finalize_global_backdoor() {
+  /* Currently the local backdoor really. This will make itself global :-) */
+  svcGlobalBackdoor((s32(*)(void)) &kernel_finalize_global_backdoor);
+  /* Check we didn't break things. */
+  return global_backdoor_installed();
 }
 
 bool get_timer_value(Handle timer, u64 *initial, u64 *interval) {
