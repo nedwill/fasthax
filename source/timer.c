@@ -19,7 +19,7 @@ static u64 get_tick_offset() {
   return offset;
 }
 
-static bool set_timer_negative(Handle timer, u32 kernel_callback_int) {
+static bool set_timer_negative(Handle timer, u32 kernel_callback_int, int error) {
   if (!(kernel_callback_int & 0x80000000)) {
     printf("set_timer_negative called with non-negative arg\n");
     return false;
@@ -28,22 +28,26 @@ static bool set_timer_negative(Handle timer, u32 kernel_callback_int) {
   Result res;
   u64 kernel_callback_shifted_goal, timeout;
 
-  kernel_callback_shifted_goal = ((u64)0x80000000) << 32;
+  kernel_callback_shifted_goal = ((u64)0x80000000 + error) << 32;
   timeout = ((u64)(kernel_callback_int - 0x80000000) << 32);
   u64 offset = get_tick_offset();
+
   u64 kernel_callback_offset = kernel_callback_shifted_goal - offset;
   if ((s64)kernel_callback_offset < 0 || (s64)timeout < 0) {
     printf("oops: kernel_callback_offset < 0 or timeout < 0\n");
     return false;
   }
-
+  
+  printf("Should reach: %llx\n", kernel_callback_shifted_goal + timeout * 3);
+  //return false;
+  
   /* now we have the offset and timeout, actually set the value */
   res = svcSetTimer(timer, kernel_callback_offset, timeout);
   if (res < 0) {
     printf("failed to set timer: 0x%lx\n", res);
     return false;
   }
-
+  
   s32 out;
   // wait for timer to tick with no timeout (should be instant)
   s32 handlecount = 1;
@@ -63,10 +67,10 @@ static bool set_timer_negative(Handle timer, u32 kernel_callback_int) {
   return true;
 }
 
-bool set_timer(Handle timer, u32 kernel_callback_int) {
+bool set_timer(Handle timer, u32 kernel_callback_int, int error) {
   /* if upper bit is set we need to workaround settimer checks */
   if (kernel_callback_int & 0x80000000) {
-    return set_timer_negative(timer, kernel_callback_int);
+    return set_timer_negative(timer, kernel_callback_int, error);
   }
 
   u64 callback_offset = (((u64)kernel_callback_int) << 32) - get_tick_offset();
