@@ -27,7 +27,7 @@ static u64 memcpy_len;
 static Handle get_object_handle = 0;
 static void *get_object_ret = NULL;
 void *(*handle_lookup_kern)(void *, u32);
-u32 *svc_handler_table_writable;
+void **svc_handler_table_writable;
 
 static void writeint() { *writeint_arg_addr = writeint_arg_value; }
 
@@ -70,20 +70,25 @@ bool mybackdoor_installed() {
   return installed;
 }
 
-void kwriteint_real(u32 *addr, u32 value) {
+void kwriteint_global_backdoor(u32 *addr, u32 value) {
   writeint_arg_addr = addr;
   writeint_arg_value = value;
-  svcMyBackdoor2((s32(*)(void)) & writeint);
+  svcGlobalBackdoor((s32(*)(void)) & writeint);
 }
 
-bool realbackdoor_installed() {
+bool global_backdoor_installed() {
   /* kwriteint won't have a side effect if it's not installed.
    * that svc is normally callable by userspace but returns
    * an error.
    */
   static u32 installed = 0;
-  kwriteint_real(&installed, 1);
+  kwriteint_global_backdoor(&installed, 1);
   return installed;
+}
+
+bool finalize_global_backdoor() {
+  /* TODO: unimplemented */
+  return false;
 }
 
 void print_array_wait(char *name, u32 *addr, u32 size) {
@@ -160,12 +165,17 @@ void kernel_randomstub(u32 *arg) {
 
 static Result kernel_backdoor(s32 (*callback)(void)) { return callback(); }
 
-bool backdoor_installed = false;
+void *send_sync_request3_orig = NULL;
 
-void install_kernel_backdoor() {
-  backdoor_installed = true;
-  u32 *svc_table = svc_handler_table_writable;
-  svc_table[SEND_SYNC_REQUEST3] = (u32)&kernel_backdoor;
+/* must be called in kernel mode */
+void install_global_backdoor() {
+  send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = &kernel_backdoor;
+}
+
+/* must be called in kernel mode */
+void uninstall_global_backdoor() {
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = send_sync_request3_orig;
 }
 
 bool get_timer_value(Handle timer, u64 *initial, u64 *interval) {

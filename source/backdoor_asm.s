@@ -9,10 +9,10 @@ svcMyBackdoor:
 	svc 0x2f
 	bx  lr
 
-.section .text.svcMyBackdoor2, "ax", %progbits
-.global svcMyBackdoor2
-.type svcMyBackdoor2, %function
+.section .text.svcGlobalBackdoor, "ax", %progbits
+.global svcGlobalBackdoor
+.type svcGlobalBackdoor, %function
 .align 2
-svcMyBackdoor2:
+svcGlobalBackdoor:
     svc 0x30
     bx  lr
