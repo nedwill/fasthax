@@ -7,6 +7,9 @@ void __system_allocateHeaps(void) {
   u32 tmp = 0;
 
   u32 size = osGetMemRegionFree(MEMREGION_APPLICATION);
+  /* TODO: record a smaller size so ctrulib doesn't alloc over the exploited
+   * object.
+   */
   __ctru_linear_heap_size = LINEAR_HEAP_SIZE;
   __ctru_heap_size = size - __ctru_linear_heap_size;
 
