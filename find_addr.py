@@ -63,28 +63,6 @@ def find_svc_handler_table(binary):
                   return_offset=True)
     return addr
 
-def find_free_40_bytes_area(binary):
-    # 0C 10 90 E5       LDR     R1, [R0, #0xC]
-    # 04 00 A0 E1       MOV     R0, R4
-    # 31 FF 2F E1       BLX     R1
-    # 04 10 A0 E1       MOV     R1, R4
-    # 08 00 9F E5       LDR     R0, =0xFFF33340
-    # 10 40 BD E8       LDMFM   SP!, {R4, LR}
-    # 7E BB FF EA       B       0x1FF9C5E4
-    # 28 33 F3 FF
-    # 40 33 F3 FF
-    # FF FF FF FF       ; target
-    addr = search(binary,
-                  '\x0c\x10\x90\xe5\x04\x00\xa0\xe1\x31\xff\x2f\xe1\x04\x10\xa0\xe1'
-                  '\x08\x00\x9f\xe5\x10\x40\xbd\xe8\x00\x00\xff\xea\x00\x00\xf3\xff'
-                  '\x00\x00\xf3\xff\xff\xff\xff\xff',
-                  skip=0x24,
-                  masks=((0x18, 0xeaff0000), (0x1c, 0xfff30000), (0x20, 0xfff30000)),
-                  return_offset=True)
-
-    if binary[addr:addr + 40] == ('\xff' * 40):
-        return addr
-
 def read_op2_value(op2):
     if op2 == 0x901:
         return 0x4000
@@ -285,14 +263,12 @@ with open(sys.argv[1], 'rb') as r:
     svc_handler_table = find_svc_handler_table(arm11bin)
     handle_lookup = find_handle_lookup(arm11bin)
     random_stub = find_random_stub(arm11bin)
-    free_area = find_free_40_bytes_area(arm11bin)
     ktimer_pool_size, ktimer_pool_offset = find_ktimer_pool_info(arm11bin)
     ktimer_pool_head, ktimer_object_size = find_ktimer_pool_head_and_object_size(arm11bin)
     print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
                                                                     arm11_bin_addr))
     print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_bin_addr))
     print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_bin_addr))
-    print '#define FREE_40_AREA %s' % hex_or_dead(convert_addr(free_area, arm11_bin_addr))
     print '#define KTIMER_POOL_SIZE %s' % hex_or_dead(ktimer_pool_size)
     print '#define KTIMER_POOL_HEAD %s' % hex_or_dead(ktimer_pool_head)
     print '#define KTIMER_POOL_OFFSET %s' % hex_or_dead(ktimer_pool_offset)
