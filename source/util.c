@@ -10,5 +10,5 @@ static int user_interrupted() {
 void wait_for_user() {
   printf("waiting for user... press <start> to continue\n");
   while (!user_interrupted());
-  svcSleepThread(100000);
+  svcSleepThread(1000000);
 }
