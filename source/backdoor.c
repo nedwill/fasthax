@@ -202,12 +202,6 @@ void uninstall_global_backdoor() {
   svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_backdoor_orig;
 }
 
-/* TODO we should use a define to translate, not store both addresses */
-/* call this */
-void *svc_7b_free_area;
-/* write this */
-void *svc_7b_free_area_writable;
-
 /* adapted from Luma, thanks, just rushing to finish this! */
 static u8 backdoor_code[40] =
   { 0xFF, 0x10, 0xCD, 0xE3, 0x0F, 0x1C, 0x81, 0xE3, 0x28, 0x10, 0x81, 0xE2,
