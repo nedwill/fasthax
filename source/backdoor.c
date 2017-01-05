@@ -7,11 +7,6 @@
 #include "backdoor.h"
 #include "util.h"
 
-/* */
-/* https://www.3dbrew.org/wiki/Virtual_address_mapping_New3DS_v9.2 */
-/* [L2L] VA fff00000..fff20000 -> PA 1ff80000..1ffa0000 [  X ] [ Priv: R-, User: -- ] */
-/* [L1 ] VA dff00000..e0000000 -> PA 1ff00000..20000000 [ XN ] [ Priv: RW, User: -- ] */
-//
 /* overwrite SendSyncRequest3 since it's stubbed but we always have permission */
 #define SEND_SYNC_REQUEST3 0x30
 #define SVC_BACKDOOR_NUM 0x7B
