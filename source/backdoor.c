@@ -18,6 +18,9 @@
 #define CURRENT_PROCESS 0xFFFF9004
 #define HANDLE_TABLE_OFFSET 0xDC
 
+#define EXC_VA_START  ((u32*)0xFFFF0000)
+#define AXIWRAMDSP_RW_MAPPING_OFFSET (0xDFF00000 - 0x1FF00000)
+
 static u32 *writeint_arg_addr;
 static u32 writeint_arg_value;
 static u32 *readint_arg;
@@ -199,12 +202,6 @@ void uninstall_global_backdoor() {
   svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_backdoor_orig;
 }
 
-/* TODO we should use a define to translate, not store both addresses */
-/* call this */
-void *svc_7b_free_area;
-/* write this */
-void *svc_7b_free_area_writable;
-
 /* adapted from Luma, thanks, just rushing to finish this! */
 static u8 backdoor_code[40] =
   { 0xFF, 0x10, 0xCD, 0xE3, 0x0F, 0x1C, 0x81, 0xE3, 0x28, 0x10, 0x81, 0xE2,
@@ -214,9 +211,18 @@ static u8 backdoor_code[40] =
 
 static void kernel_finalize_global_backdoor() {
   if (svc_handler_table_writable[SVC_BACKDOOR_NUM] == 0) {
+    /* copy from waithax */
+    u32 *free_space = EXC_VA_START;
+
+    while(free_space[0] != 0xFFFFFFFF || free_space[1] != 0xFFFFFFFF)
+      free_space++;
+    u32 *free_space_writable = convertVAToPA(free_space) + AXIWRAMDSP_RW_MAPPING_OFFSET;
+
     /* write to writable portion */
-    memcpy(svc_7b_free_area_writable, backdoor_code, sizeof(backdoor_code));
-    svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_7b_free_area;
+    memcpy(free_space_writable, backdoor_code, sizeof(backdoor_code));
+    svc_handler_table_writable[SVC_BACKDOOR_NUM] = free_space;
+
+    flushEntireCaches();
   }
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_handler_table_writable[SVC_BACKDOOR_NUM];
 }
