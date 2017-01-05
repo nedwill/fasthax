@@ -249,21 +249,33 @@ static u8 backdoor_code[40] =
     0x30, 0xFF, 0x2F, 0xE1, 0x03, 0x00, 0xBD, 0xE8, 0x00, 0xD0, 0xA0, 0xE1,
     0x11, 0xFF, 0x2F, 0xE1 };
 
-static void kernel_finalize_global_backdoor() {
-  if (svc_handler_table_writable[SVC_BACKDOOR_NUM] == 0) {
-    /* write to writable portion */
-    if (svc_7b_free_area_writable) {
-      memcpy(svc_7b_free_area_writable, backdoor_code, sizeof(backdoor_code));
-      svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_7b_free_area;
-    } else {
-      // TODO
-    }
+static int svc_7b_restored = 0;
+
+static void kernel_restore_svc_7b_backdoor() {
+  if (svc_handler_table_writable[SVC_BACKDOOR_NUM]) {
+    svc_7b_restored = 2;
+    return;
   }
+
+  /* Currently the local backdoor really. This will make itself global :-) */
+  /* write to writable portion */
+  if (svc_7b_free_area_writable) {
+    memcpy(svc_7b_free_area_writable, backdoor_code, sizeof(backdoor_code));
+    svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_7b_free_area;
+    svc_7b_restored = 1;
+  }
+}
+
+static void kernel_finalize_global_backdoor() {
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_handler_table_writable[SVC_BACKDOOR_NUM];
 }
 
 bool finalize_global_backdoor() {
-  /* Currently the local backdoor really. This will make itself global :-) */
+  svcGlobalBackdoor((s32(*)(void)) &kernel_restore_svc_7b_backdoor);
+  if (!svc_7b_restored) {
+    //printf("svc_7b_restored: %d\n", svc_7b_restored);
+    //wait_for_user();
+  }
   svcGlobalBackdoor((s32(*)(void)) &kernel_finalize_global_backdoor);
   /* Check we didn't break things. */
   return global_backdoor_installed();
