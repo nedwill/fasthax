@@ -20,6 +20,8 @@ void *get_object_addr(Handle handle);
 void kernel_randomstub(u32 *arg);
 bool get_timer_value(Handle timer, u64 *initial, u64 *interval);
 
+bool search_free_area(void);
+
 /* Real backdoor */
 u32 kreadint_real(u32 *addr);
 void kwriteint_real(u32 *addr, u32 value);
