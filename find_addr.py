@@ -85,6 +85,92 @@ def find_free_40_bytes_area(binary):
     if binary[addr:addr + 40] == ('\xff' * 40):
         return addr
 
+def read_op2_value(op2):
+    if op2 == 0x901:
+        return 0x4000
+    if op2 == 0xb12:
+        return 0x4800
+    if op2 == 0xf92:
+        return 0x248
+    if op2 == 0xf56:
+        return 0x158
+    print 'WARN: unknown op2', hex(op2)
+    return 0
+
+def find_ktimer_pool_info(binary):
+    # n3ds patterns
+    # 01 29 84 E2       ADD     R2, R4, KTIMER_BASE_OFFSET_1
+    # E1 3E A0 E3       MOV     R3, KTIMER_POOL_SIZE
+    # E2 2E 82 E2       ADD     R2, R2, KTIMER_BASE_OFFSET_2
+    # B4 61 C0 E1       STRH    R6, [R0, #20]
+    # 50 03 9F E5       LDR     R0, =KTIMER_POOL_HEAD
+    # 3C 10 A0 E3       MOV     R1, #60
+    # 54 51 00 EB       BL      0x1FF94738
+
+    # maybe >= 11.0
+    idx = search(binary,
+                 '\x00\x20\x84\xe2\x00\x3e\xa0\xe3\x00\x2e\x82\xe2\xb4\x61\xc0\xe1'
+                 '\x50\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
+                 masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)),
+                 return_offset=True)
+    if idx:
+        size = (struct.unpack('I', (binary[idx + 4:idx + 8]))[0] & 0xff) << 4
+        addr = struct.unpack('I', (binary[idx + 0x368:idx + 0x368 + 4]))[0]
+        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
+        offset2 = (struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xff) << 4
+        return size, addr, read_op2_value(offset1) + offset2
+
+    # maybe >= 9.0
+    idx = search(binary,
+                 '\x00\x20\x84\xe2\x00\x3e\xa0\xe3\x00\x2e\x82\xe2\xb4\x61\xc0\xe1'
+                 '\x48\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
+                 masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)),
+                 return_offset=True)
+    if idx:
+        size = (struct.unpack('I', (binary[idx + 4:idx + 8]))[0] & 0xff) << 4
+        addr = struct.unpack('I', (binary[idx + 0x360:idx + 0x360 + 4]))[0]
+        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
+        offset2 = (struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xff) << 4
+        return size, addr, read_op2_value(offset1) + offset2
+
+    # o3ds patterns
+    # 12 2B 84 E2       ADD     R2, R4, KTIMER_BASE_OFFSET_1
+    # 54 33 9F E5       LDR     R3, =KTIMER_POOL_SIZE_PTR
+    # 92 2F 82 E2       ADD     R2, R2, KTIMER_BASE_OFFSET_2
+    # B4 61 C0 E1       STRH    R6, [R0, #20]
+    # 4C 03 9F E5       LDR     R0, =KTIMER_POOL_HEAD
+    # 3C 10 A0 E3       MOV     R1, #60
+    # E3 4F 00 EB       BL      0x1FF9416c
+
+    # maybe >= 11.0
+    idx = search(binary,
+                 '\x00\x20\x84\xe2\x00\x00\x9f\xe5\x00\x2f\x82\xe2\xb4\x61\xc0\xe1'
+                 '\x4c\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
+                 masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)),
+                 return_offset=True)
+    if idx:
+        size_ptr = struct.unpack('I', (binary[idx + 4:idx + 8]))[0]
+        addr = struct.unpack('I', (binary[idx + 0x348:idx + 0x348 + 4]))[0]
+        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
+        offset2 = struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xfff
+        return 0xdead, addr, read_op2_value(offset1) + read_op2_value(offset2)
+
+    # maybe >= 9.0
+    idx = search(binary,
+                 '\x00\x20\x84\xe2\x00\x00\x9f\xe5\x00\x2f\x82\xe2\xb4\x61\xc0\xe1'
+                 '\x58\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
+                 masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)),
+                 return_offset=True)
+    if idx:
+        size_ptr = struct.unpack('I', (binary[idx + 4:idx + 8]))[0]
+        addr = struct.unpack('I', (binary[idx + 0x370:idx + 0x370 + 4]))[0]
+        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
+        offset2 = struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xfff
+        return 0xdead, addr, read_op2_value(offset1) + read_op2_value(offset2)
+
+    # need to check
+    return (None, None, None)
+
 def hex_or_dead(addr):
     return hex(addr or 0xdeadbabe)
 
@@ -93,22 +179,32 @@ def convert_addr(addr, offset):
         return
     return addr + offset - 0x1ff80000 + 0xfff00000
 
+def read_section_info(native_firm, idx):
+    offset = idx * 0x30 + 0x40 # 0x40 - section info start
+    section_offset = struct.unpack('I', native_firm[offset:offset + 4])[0]
+    section_addr_offset = struct.unpack('I', native_firm[offset + 4:offset+8])[0]
+    section_size = struct.unpack('I', native_firm[offset + 8:offset+12])[0]
+    return section_offset, section_addr_offset, section_size
+
 if len(sys.argv) < 2:
     print '%s <native_firm.bin>' % sys.argv[0]
     raise SystemExit(1)
 
 with open(sys.argv[1], 'rb') as r:
     native_firm = r.read()
-    arm11_bin_offset = struct.unpack('I', native_firm[0x70:0x74])[0]
-    arm11_offset = struct.unpack('I', native_firm[0x74:0x78])[0]
-    arm11_size = struct.unpack('I', native_firm[0x78:0x7c])[0]
-    arm11bin = native_firm[arm11_bin_offset:arm11_bin_offset + arm11_size]
+
+    arm11_bin_offset, arm11_bin_addr, arm11_bin_size = read_section_info(native_firm, 1)
+    arm11bin = native_firm[arm11_bin_offset:arm11_bin_offset + arm11_bin_size]
     svc_handler_table = find_svc_handler_table(arm11bin)
     handle_lookup = find_handle_lookup(arm11bin)
     random_stub = find_random_stub(arm11bin)
     free_area = find_free_40_bytes_area(arm11bin)
+    ktimer_pool_size, ktimer_pool_head, ktimer_pool_offset = find_ktimer_pool_info(arm11bin)
     print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
-                                                                    arm11_offset))
-    print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_offset))
-    print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_offset))
-    print '#define FREE_40_AREA %s' % hex_or_dead(convert_addr(free_area, arm11_offset))
+                                                                    arm11_bin_addr))
+    print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_bin_addr))
+    print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_bin_addr))
+    print '#define FREE_40_AREA %s' % hex_or_dead(convert_addr(free_area, arm11_bin_addr))
+    print '#define KTIMER_POOL_SIZE %s' % hex_or_dead(ktimer_pool_size)
+    print '#define KTIMER_POOL_HEAD %s' % hex_or_dead(ktimer_pool_head)
+    print '#define KTIMER_POOL_OFFSET %s' % hex_or_dead(ktimer_pool_offset)
