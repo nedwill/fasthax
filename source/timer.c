@@ -29,6 +29,11 @@ static bool set_timer_negative(Handle timer, u32 kernel_callback_int, u32 carry)
     return false;
   }
 
+  if (carry > 2) {
+    printf("set_timer_negative called with unsupported carry value\n");
+    return false;
+  }
+
   Result res;
   u64 kernel_callback_shifted_goal, timeout;
 
@@ -75,7 +80,7 @@ static bool set_timer_negative(Handle timer, u32 kernel_callback_int, u32 carry)
   return true;
 }
 
-bool set_timer(Handle timer, u32 kernel_callback_int, u32 carry) {
+static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry) {
   /* if upper bit is set we need to workaround settimer checks */
   if (kernel_callback_int & 0x80000000) {
     return set_timer_negative(timer, kernel_callback_int, carry);
@@ -87,6 +92,24 @@ bool set_timer(Handle timer, u32 kernel_callback_int, u32 carry) {
   if (res < 0) {
     printf("set_timer: svcSetTimer(%ld, %lld, 0) -> 0x%lx\n",
            timer, callback_offset, res);
+    return false;
+  }
+
+  return true;
+}
+
+bool set_timer(Handle timer, u32 kernel_callback_int) {
+  u64 timeout = 0x100000000 | kernel_callback_int;
+  u32 carry = timeout % 3;
+  timeout /= 3;
+
+  if (!set_timer_internal(timer, 0xaaa00000, 0)) {
+    printf("set_timer_internal failed\n");
+    return false;
+  }
+
+  if (!set_timer_internal(timer, (u32)timeout, carry)) {
+    printf("set_timer_internal failed\n");
     return false;
   }
 
@@ -113,20 +136,10 @@ bool initialize_timer_state() {
     return false;
   }
 
-  u64 timeout = 0x100000000 | (u32)RandomStub;
-  u32 carry = timeout % 3;
-  timeout /= 3;
   svcCancelTimer(timer2);
 
-  if (!set_timer(timer2, 0xaaa00000, 0)) {
-    printf("set_timer_test: set_timer failed\n");
-    svcCloseHandle(timer2);
-    svcCloseHandle(timer);
-    return false;
-  }
-
-  if (!set_timer(timer2, (u32)timeout, carry)) {
-    printf("set_timer_test: set_timer failed\n");
+  if (!set_timer(timer2, (u32)RandomStub)) {
+    printf("failed to set timer\n");
     svcCloseHandle(timer2);
     svcCloseHandle(timer);
     return false;
