@@ -26,13 +26,13 @@ extern u32 ktimer_base_offset;
 
 static void *find_orphan() {
   u32 num_timer_objects = ktimer_pool_size / KTIMER_OBJECT_SIZE;
-  /* How can the kernel allocate less than a full object?
-   * I don't think this will happen. */
-  /*
+  /* @d3m3vilurr: 0xe50 is not divisible by 0x3c,
+   * and logic found 62 objects not 61...
+   * @nedwill: WTF?
+   */
   if (ktimer_pool_size % KTIMER_OBJECT_SIZE) {
       num_timer_objects += 1;
   }
-  */
   void *ktimer_base = (void *)(0xFFF70000 + ktimer_base_offset);
   void *ktimer_end = (void *)((u32)ktimer_base + ktimer_pool_size);
 
