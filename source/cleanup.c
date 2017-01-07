@@ -28,11 +28,13 @@ static void *find_orphan() {
   u32 num_timer_objects = ktimer_pool_size / KTIMER_OBJECT_SIZE;
   /* @d3m3vilurr: 0xe50 is not divisible by 0x3c,
    * and logic found 62 objects not 61...
-   * @nedwill: WTF?
+   * @nedwill: WTF? Round down until we figure out what's going on.
    */
+  /*
   if (ktimer_pool_size % KTIMER_OBJECT_SIZE) {
       num_timer_objects += 1;
   }
+  */
   void *ktimer_base = (void *)(0xFFF70000 + ktimer_base_offset);
   void *ktimer_end = (void *)((u32)ktimer_base + ktimer_pool_size);
 
