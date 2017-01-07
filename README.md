@@ -10,22 +10,20 @@ application that is meant to be launched as a 3dsx.
 
 # For homebrew application developers
 
-User application should not be embedding kernel exploit code to ensure
-compatibility for future ARM11 kernel exploits.
+User applications should not embed kernel exploit code to ensure compatibility
+for future ARM11 kernel exploits, and to allow updates to existing exploits.
 
-ARM11 kernel exploit projects (currently, [waithax][waithax] and this project)
-will install backdoor to SVC 0x30, and this SVC already have ACL whether
-kernel exploit installation.
+All current ARM11 kernel exploit projects (currently, [waithax][waithax]
+and this project) install a backdoor to SVC 0x30, as this SVC is originally
+stubbed, and always permitted by ACL. This means any process can run code
+in the context of the kernel without invasive kernel modifications.
 
-So, developers who want to make evevated privileged application can use this
-instead of real `svcBackdoor`(SVC 0x7b).
+Because this SVC is permitted, checking whether the backdoor is installed can
+be done safely as it will just return an error. Otherwise, the process can fail
+when lacking the ACL permission to call `svcBackdoor`.
 
-Also, can use this SVC for checking kernel exploit installation, and it make
-to avoid system hanging at the using `svcBackdoor` without ACL.
-
-Detail code example, please check [Mrrraou][Mrrraou]'s [snippets][snippets]
+For more detailed code examples, please check [Mrrraou][Mrrraou]'s [snippets][snippets].
 
 [waithax]: https://github.com/Mrrraou/waithax
-[hb_menu]: https://github.com/smealum/3ds_hb_menu
 [Mrrraou]: https://github.com/Mrrraou
 [snippets]: https://gist.github.com/Mrrraou/c74572c04d13c586d363bf64eba0d3a1
