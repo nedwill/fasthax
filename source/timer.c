@@ -23,22 +23,22 @@ static u64 get_tick_offset() {
   return offset;
 }
 
-static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry, u64 *offset_res) {
+static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offset_res) {
   if (!(kernel_callback_int & 0x80000000)) {
     printf("set_timer_internal called with non-negative arg\n");
-    return false;
-  }
-
-  if (carry > 2) {
-    printf("set_timer_internal called with unsupported carry value\n");
     return false;
   }
 
   Result res;
   u64 kernel_callback_shifted_goal, timeout;
 
+  u64 timeout1 = 0x100000000 | kernel_callback_int;
+  u32 carry = timeout1 % 3;
+  timeout1 /= 3;
+  u32 intermediate = (u32)timeout1;
+
   kernel_callback_shifted_goal = ((u64)0x80000000) << 32;
-  timeout = ((u64)(kernel_callback_int - 0x80000000) << 32);
+  timeout = ((u64)(intermediate - 0x80000000) << 32);
   switch (carry) {
     case 1:
       timeout += 0x55555556;
@@ -87,12 +87,8 @@ bool set_timer(Handle timer, u32 kernel_callback_int) {
     return false;
   }
 
-  u64 timeout = 0x100000000 | kernel_callback_int;
-  u32 carry = timeout % 3;
-  timeout /= 3;
-  u64 offset_res = 0;
-
-  if (!set_timer_internal(timer, (u32)timeout, carry, &offset_res)) {
+  u64 offset_res;
+  if (!set_timer_internal(timer, kernel_callback_int, &offset_res)) {
     printf("set_timer_internal failed\n");
     return false;
   }
@@ -107,11 +103,7 @@ bool set_timer_feedback(Handle timer, u32 kernel_callback_int, u64 *feedback) {
     return false;
   }
 
-  u64 timeout = 0x100000000 | kernel_callback_int;
-  u32 carry = timeout % 3;
-  timeout /= 3;
-
-  if (!set_timer_internal(timer, (u32)timeout, carry, feedback)) {
+  if (!set_timer_internal(timer, kernel_callback_int, feedback)) {
     printf("set_timer_internal failed\n");
     return false;
   }
@@ -193,7 +185,7 @@ bool set_timer_test() {
   printf("[+] Initialized kernel-specific offsets.\n");
 
   Handle timer;
-  Result res = svcCreateTimer(&timer, 2);
+  Result res = svcCreateTimer(&timer, 0);
   if (res < 0) {
     printf("failed to create timer\n");
     return false;
