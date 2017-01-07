@@ -23,14 +23,14 @@ static u64 get_tick_offset() {
   return offset;
 }
 
-static bool set_timer_negative(Handle timer, u32 kernel_callback_int, u32 carry) {
+static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry) {
   if (!(kernel_callback_int & 0x80000000)) {
-    printf("set_timer_negative called with non-negative arg\n");
+    printf("set_timer_internal called with non-negative arg\n");
     return false;
   }
 
   if (carry > 2) {
-    printf("set_timer_negative called with unsupported carry value\n");
+    printf("set_timer_internal called with unsupported carry value\n");
     return false;
   }
 
@@ -80,25 +80,12 @@ static bool set_timer_negative(Handle timer, u32 kernel_callback_int, u32 carry)
   return true;
 }
 
-static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u32 carry) {
-  /* if upper bit is set we need to workaround settimer checks */
-  if (kernel_callback_int & 0x80000000) {
-    return set_timer_negative(timer, kernel_callback_int, carry);
-  }
-
-  u64 callback_offset = (((u64)kernel_callback_int) << 32) - get_tick_offset();
-  // TODO carry
-  Result res = svcSetTimer(timer, callback_offset, 0);
-  if (res < 0) {
-    printf("set_timer: svcSetTimer(%ld, %lld, 0) -> 0x%lx\n",
-           timer, callback_offset, res);
+bool set_timer(Handle timer, u32 kernel_callback_int) {
+  if ((kernel_callback_int & 0x80000000) == 0) {
+    printf("set_timer only support kernel (negative) addresses\n");
     return false;
   }
 
-  return true;
-}
-
-bool set_timer(Handle timer, u32 kernel_callback_int) {
   u64 timeout = 0x100000000 | kernel_callback_int;
   u32 carry = timeout % 3;
   timeout /= 3;
@@ -143,7 +130,7 @@ bool initialize_timer_state() {
   if (mybackdoor_installed()) {
     u64 initial = 0;
     if (!get_timer_value(timer2, &initial, NULL)) {
-      printf("set_timer_test: get_timer_value failed\n");
+      printf("set_timer: get_timer_value failed\n");
       svcCloseHandle(timer2);
       svcCloseHandle(timer);
       return false;
