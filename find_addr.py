@@ -244,7 +244,7 @@ def find_ktimer_pool_head_and_object_size(binary):
     return None, None
 
 def hex_or_dead(addr):
-    return hex(addr or 0xdeadbabe)
+    return '0x%X' % (addr or 0xdeadbabe)
 
 def convert_addr(addr, offset):
     if not addr:
