@@ -27,6 +27,7 @@ static Handle get_object_handle = 0;
 static void *get_object_ret = NULL;
 void *(*handle_lookup_kern)(void *, u32);
 void **svc_handler_table_writable;
+u32 *svc_acl_check_writable;
 
 static void writeint() { *writeint_arg_addr = writeint_arg_value; }
 
@@ -220,6 +221,9 @@ static void kernel_finalize_global_backdoor() {
     flushEntireCaches();
   }
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_handler_table_writable[SVC_BACKDOOR_NUM];
+
+  /* patch out svc acl check */
+  *svc_acl_check_writable = 0xE3B0A001; // MOVS R10, #1
 }
 
 bool finalize_global_backdoor() {

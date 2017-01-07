@@ -43,6 +43,13 @@ def find_random_stub(binary):
                   return_offset=True)
     return addr
 
+def find_svc_acl_check(binary):
+    # 1B 0E 1A E1       TST     R10, R11,LSL LR
+    addr = search(binary,
+                  '\x1b\x0e\x1a\xe1',
+                  return_offset=True)
+    return addr
+
 def find_svc_handler_table(binary):
     # 0F 00 BD E8       LDMFD   SP!, {R0-R3}
     # 24 80 9D E5       LDR     R8, [SP, #0x24]
@@ -237,7 +244,7 @@ def find_ktimer_pool_head_and_object_size(binary):
     return None, None
 
 def hex_or_dead(addr):
-    return hex(addr or 0xdeadbabe)
+    return '0x%X' % (addr or 0xdeadbabe)
 
 def convert_addr(addr, offset):
     if not addr:
@@ -265,10 +272,12 @@ with open(sys.argv[1], 'rb') as r:
     random_stub = find_random_stub(arm11bin)
     ktimer_pool_size, ktimer_pool_offset = find_ktimer_pool_info(arm11bin)
     ktimer_pool_head, ktimer_object_size = find_ktimer_pool_head_and_object_size(arm11bin)
+    svc_acl_check = find_svc_acl_check(arm11bin)
     print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
                                                                     arm11_bin_addr))
     print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_bin_addr))
     print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_bin_addr))
+    print '#define SVC_ACL_CHECK %s' % hex_or_dead(convert_addr(svc_acl_check, arm11_bin_addr))
     print '#define KTIMER_POOL_SIZE %s' % hex_or_dead(ktimer_pool_size)
     print '#define KTIMER_POOL_HEAD %s' % hex_or_dead(ktimer_pool_head)
     print '#define KTIMER_POOL_OFFSET %s' % hex_or_dead(ktimer_pool_offset)
