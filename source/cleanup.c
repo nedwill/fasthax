@@ -89,7 +89,7 @@ static void *find_orphan() {
     }
   }
   if (num_unreachable != 1) {
-    printf("[!] Warning: expected one reachable node, found %ld!\n", num_unreachable);
+    printf("[!] Warning: expected one unreachable node, found %ld!\n", num_unreachable);
   }
 
   return orphan;
