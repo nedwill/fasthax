@@ -103,11 +103,6 @@ bool set_timer(Handle timer, u32 kernel_callback_int) {
   u32 carry = timeout % 3;
   timeout /= 3;
 
-  if (!set_timer_internal(timer, 0xaaa00000, 0)) {
-    printf("set_timer_internal failed\n");
-    return false;
-  }
-
   if (!set_timer_internal(timer, (u32)timeout, carry)) {
     printf("set_timer_internal failed\n");
     return false;
