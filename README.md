@@ -18,9 +18,7 @@ and this project) install a backdoor to SVC 0x30, as this SVC is originally
 stubbed, and always permitted by ACL. This means any process can run code
 in the context of the kernel without invasive kernel modifications.
 
-Because this SVC is permitted, checking whether the backdoor is installed can
-be done safely as it will just return an error. Otherwise, the process can fail
-when lacking the ACL permission to call `svcBackdoor`.
+SVC 0x7B is also available as a backdoor for compatibility purposes.
 
 For more detailed code examples, please check [Mrrraou][Mrrraou]'s [snippets][snippets].
 
