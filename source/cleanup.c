@@ -37,7 +37,7 @@ static void *find_orphan() {
   for (void *current_timer = ktimer_base;
        current_timer < ktimer_end;
        current_timer += KTIMER_OBJECT_SIZE, i++) {
-    void *child = (void *)kreadint(current_timer);
+    void *child = (void *)kreadint_real(current_timer);
 
     if (TOBJ_ADDR_TO_IDX(ktimer_base, current_timer) != i) {
       printf("[!] Got TOBJ_ADDR_TO_IDX(current_timer) != i: 0x%lx != 0x%lx\n",
