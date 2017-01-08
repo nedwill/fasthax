@@ -11,7 +11,7 @@
 #define SEND_SYNC_REQUEST3 0x30
 #define SVC_BACKDOOR_NUM 0x7B
 #define CURRENT_PROCESS 0xFFFF9004
-#define HANDLE_TABLE_OFFSET(is_new3ds) ((is_new3ds) ? 0xDC : 0xD4)
+#define HANDLE_TABLE_OFFSET ((is_n3ds) ? 0xDC : 0xD4)
 
 #define EXC_VA_START  ((u32*)0xFFFF0000)
 #define AXIWRAMDSP_RW_MAPPING_OFFSET (0xDFF00000 - 0x1FF00000)
@@ -28,6 +28,8 @@ static void *get_object_ret = NULL;
 void *(*handle_lookup_kern)(void *, u32);
 void **svc_handler_table_writable;
 u32 *svc_acl_check_writable;
+
+extern bool is_n3ds;
 
 static void writeint() { *writeint_arg_addr = writeint_arg_value; }
 
@@ -131,9 +133,7 @@ static void kernel_get_object_addr() {
   kdisable_interrupts();
   Handle handle = get_object_handle;
   u32 current_process = *(u32 *)CURRENT_PROCESS;
-  bool is_new3ds;
-  APT_CheckNew3DS(&is_new3ds);
-  u32 process_handle_table = current_process + HANDLE_TABLE_OFFSET(is_new3ds);
+  u32 process_handle_table = current_process + HANDLE_TABLE_OFFSET;
   get_object_ret = handle_lookup_kern((void *)process_handle_table, handle);
 }
 
