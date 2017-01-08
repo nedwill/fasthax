@@ -11,7 +11,7 @@
 #define SEND_SYNC_REQUEST3 0x30
 #define SVC_BACKDOOR_NUM 0x7B
 #define CURRENT_PROCESS 0xFFFF9004
-#define HANDLE_TABLE_OFFSET 0xDC
+#define HANDLE_TABLE_OFFSET(is_new3ds) ((is_new3ds) ? 0xDC : 0xD4)
 
 #define EXC_VA_START  ((u32*)0xFFFF0000)
 #define AXIWRAMDSP_RW_MAPPING_OFFSET (0xDFF00000 - 0x1FF00000)
@@ -131,7 +131,9 @@ static void kernel_get_object_addr() {
   kdisable_interrupts();
   Handle handle = get_object_handle;
   u32 current_process = *(u32 *)CURRENT_PROCESS;
-  u32 process_handle_table = current_process + HANDLE_TABLE_OFFSET;
+  bool is_new3ds;
+  APT_CheckNew3DS(&is_new3ds);
+  u32 process_handle_table = current_process + HANDLE_TABLE_OFFSET(is_new3ds);
   get_object_ret = handle_lookup_kern((void *)process_handle_table, handle);
 }
 
