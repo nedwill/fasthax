@@ -1,11 +1,11 @@
 .arm
 .align 4
 
-.section .text.svcMyBackdoor, "ax", %progbits
-.global svcMyBackdoor
-.type svcMyBackdoor, %function
+.section .text.svcDebugBackdoor, "ax", %progbits
+.global svcDebugBackdoor
+.type svcDebugBackdoor, %function
 .align 2
-svcMyBackdoor:
+svcDebugBackdoor:
 	svc 0x2f
 	bx  lr
 

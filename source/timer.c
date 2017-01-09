@@ -140,7 +140,7 @@ bool initialize_timer_state() {
     return false;
   }
 
-  if (mybackdoor_installed()) {
+  if (debug_backdoor_installed()) {
     u64 initial = 0;
     if (!get_timer_value(timer2, &initial, NULL)) {
       printf("set_timer: get_timer_value failed\n");
