@@ -33,7 +33,7 @@ bool set_timer(Handle timer, u32 kernel_callback_int) {
 
   u64 offset = get_tick_offset();
   u64 timeout = ((u64)(kernel_callback_int - 0x80000000) << 32) + 1 - offset;
-  /* land as far back as possible */
+  /* land as far forward as possible */
   u64 kernel_callback_offset = 0x8000000000000000 - 1;
   if ((s64)kernel_callback_offset < 0 || (s64)timeout < 0) {
     printf("oops: kernel_callback_offset < 0 or timeout < 0\n");
