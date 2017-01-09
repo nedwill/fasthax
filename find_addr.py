@@ -1,6 +1,8 @@
 import sys
 import struct
 
+PRINT_FORMAT = '{SYSTEM_VERSION(0, 00, 0},  0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%04X, 0x%04X},  // 00.0'
+
 def search(binary, pattern, skip=0, masks=None, return_offset=False, start_offset=0):
     pattern_len = len(pattern)
     for idx in xrange(start_offset, len(binary) - pattern_len):
@@ -243,13 +245,13 @@ def find_ktimer_pool_head_and_object_size(binary):
 
     return None, None
 
-def hex_or_dead(addr):
-    return '0x%X' % (addr or 0xdeadbabe)
+def check_or_dead(addr):
+    return addr or 0xdead
 
-def convert_addr(addr, offset):
+def convert_addr(addr, offset=0, addend=(-0x1ff80000 + 0xfff00000)):
     if not addr:
-        return
-    return addr + offset - 0x1ff80000 + 0xfff00000
+        return 0xdead
+    return (addr + offset + addend) & 0xFFFFFFFF
 
 def read_section_info(native_firm, idx):
     offset = idx * 0x30 + 0x40 # 0x40 - section info start
@@ -273,12 +275,13 @@ with open(sys.argv[1], 'rb') as r:
     ktimer_pool_size, ktimer_pool_offset = find_ktimer_pool_info(arm11bin)
     ktimer_pool_head, ktimer_object_size = find_ktimer_pool_head_and_object_size(arm11bin)
     svc_acl_check = find_svc_acl_check(arm11bin)
-    print '#define SVC_HANDLER_TABLE %s' % hex_or_dead(convert_addr(svc_handler_table,
-                                                                    arm11_bin_addr))
-    print '#define HANDLE_LOOKUP %s' % hex_or_dead(convert_addr(handle_lookup, arm11_bin_addr))
-    print '#define RANDOM_STUB %s' % hex_or_dead(convert_addr(random_stub, arm11_bin_addr))
-    print '#define SVC_ACL_CHECK %s' % hex_or_dead(convert_addr(svc_acl_check, arm11_bin_addr))
-    print '#define KTIMER_POOL_SIZE %s' % hex_or_dead(ktimer_pool_size)
-    print '#define KTIMER_POOL_HEAD %s' % hex_or_dead(ktimer_pool_head)
-    print '#define KTIMER_POOL_OFFSET %s' % hex_or_dead(ktimer_pool_offset)
-    print '#define KTIMER_OBJECT_SIZE %s' % hex_or_dead(ktimer_object_size)
+
+    print PRINT_FORMAT % (
+            convert_addr(handle_lookup, offset=arm11_bin_addr),
+            convert_addr(random_stub, offset=arm11_bin_addr),
+            convert_addr(svc_handler_table, offset=arm11_bin_addr),
+            convert_addr(svc_acl_check, offset=arm11_bin_addr),
+            convert_addr(ktimer_pool_head, addend=0),
+            convert_addr(ktimer_pool_size, addend=0),
+            convert_addr(ktimer_pool_offset, addend=0),
+    )
