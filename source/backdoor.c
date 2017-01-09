@@ -37,14 +37,14 @@ static void memcpy_int() {
   memcpy(memcpy_dst, memcpy_src, memcpy_len);
 }
 
-void kmemcpy(void *dst, void *src, u32 len) {
+void kmemcpy_debug(void *dst, void *src, u32 len) {
   memcpy_dst = dst;
   memcpy_src = src;
   memcpy_len = len;
   svcMyBackdoor((s32(*)(void)) & memcpy_int);
 }
 
-void kwriteint(u32 *addr, u32 value) {
+void kwriteint_debug(u32 *addr, u32 value) {
   writeint_arg_addr = addr;
   writeint_arg_value = value;
   svcMyBackdoor((s32(*)(void)) & writeint);
@@ -52,9 +52,9 @@ void kwriteint(u32 *addr, u32 value) {
 
 static void readint() { readint_res = *readint_arg; }
 
-u32 kreadint(u32 *addr) {
+u32 kreadint_debug(u32 *addr) {
   if (addr == 0) {
-    printf("kreadint(NULL) -> 0\n");
+    printf("kreadint_debug(NULL) -> 0\n");
     return 0;
   }
   readint_arg = addr;
@@ -84,7 +84,7 @@ bool mybackdoor_installed() {
    * an error.
    */
   static u32 installed = 0;
-  kwriteint(&installed, 1);
+  kwriteint_debug(&installed, 1);
   return installed;
 }
 
@@ -114,7 +114,7 @@ void print_array_wait(char *name, u32 *addr, u32 size) {
     return;
   }
   for (u32 i = 0; i < size / 4; i++) {
-    printf("%s[%ld]: 0x%lx\n", name, i, kreadint(&addr[i]));
+    printf("%s[%ld]: 0x%lx\n", name, i, kreadint_debug(&addr[i]));
     if (i && (i % 16 == 0)) {
       printf("still going: waiting for <start>\n");
       wait_for_user();
@@ -147,9 +147,9 @@ void *get_object_addr(Handle handle) {
   if (get_object_ret) {
     u32 *obj = get_object_ret;
     u32 *refcount_addr = &obj[1];
-    u32 refcount = kreadint(refcount_addr);
+    u32 refcount = kreadint_debug(refcount_addr);
     if (refcount > 0) {
-      kwriteint(refcount_addr, refcount - 1);
+      kwriteint_debug(refcount_addr, refcount - 1);
     } else {
       printf("wtf? object is in table with 0 refcount?");
     }
@@ -243,11 +243,11 @@ bool get_timer_value(Handle timer, u64 *initial, u64 *interval) {
   }
 
   if (initial) {
-    kmemcpy(initial, &timer_addr[6], sizeof(u64));
+    kmemcpy_debug(initial, &timer_addr[6], sizeof(u64));
   }
 
   if (interval) {
-    kmemcpy(interval, &timer_addr[5], sizeof(u64));
+    kmemcpy_debug(interval, &timer_addr[5], sizeof(u64));
   }
 
   return true;

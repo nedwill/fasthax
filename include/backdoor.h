@@ -10,9 +10,9 @@ Result svcMyBackdoor(s32 (*callback)(void));
 Result svcGlobalBackdoor(s32 (*callback)(void));
 
 /* Luma backdoor */
-void kmemcpy(void *dst, void *src, u32 len);
-void kwriteint(u32 *addr, u32 value);
-u32 kreadint(u32 *addr);
+void kmemcpy_debug(void *dst, void *src, u32 len);
+void kwriteint_debug(u32 *addr, u32 value);
+u32 kreadint_debug(u32 *addr);
 bool mybackdoor_installed();
 void print_array_wait(char *name, u32 *addr, u32 size);
 void *get_object_addr(Handle handle);
