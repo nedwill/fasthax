@@ -153,6 +153,8 @@ bool initialize_timer_state() {
     return false;
   }
 
+  /* I think we always win this now. */
+  /*
   if (debug_backdoor_installed()) {
     u64 initial = 0;
     if (!get_timer_value(timer2, &initial, NULL)) {
@@ -172,6 +174,7 @@ bool initialize_timer_state() {
     }
     wait_for_user();
   }
+  */
 
   /* alloced: timer1 */
   /* freed: timer2 -> ... */
