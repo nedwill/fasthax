@@ -242,12 +242,17 @@ def convert_addr(addr, offset=0, addend=(-0x1ff80000 + 0xfff00000)):
         return 0xdead
     return (addr + offset + addend) & 0xFFFFFFFF
 
-def read_section_info(native_firm, idx):
+def read_firm_section_info(native_firm, idx):
     offset = idx * 0x30 + 0x40 # 0x40 - section info start
     section_offset = read_uint(native_firm, offset)
     section_addr_offset = read_uint(native_firm, offset + 4)
     section_size = read_uint(native_firm, offset + 8)
     return section_offset, section_addr_offset, section_size
+
+def read_firm_section(firm, idx):
+    offset, addr, size = read_firm_section_info(firm, idx)
+    binary = firm[offset:offset + size]
+    return addr, binary
 
 if len(sys.argv) < 2:
     print '%s <native_firm.bin>' % sys.argv[0]
@@ -255,9 +260,8 @@ if len(sys.argv) < 2:
 
 with open(sys.argv[1], 'rb') as r:
     native_firm = r.read()
+    arm11_section_addr, arm11bin = read_firm_section(native_firm, 1)
 
-    arm11_bin_offset, arm11_bin_addr, arm11_bin_size = read_section_info(native_firm, 1)
-    arm11bin = native_firm[arm11_bin_offset:arm11_bin_offset + arm11_bin_size]
     svc_handler_table = find_svc_handler_table(arm11bin)
     handle_lookup = find_handle_lookup(arm11bin)
     random_stub = find_random_stub(arm11bin)
@@ -266,10 +270,10 @@ with open(sys.argv[1], 'rb') as r:
     svc_acl_check = find_svc_acl_check(arm11bin)
 
     print PRINT_FORMAT % (
-            convert_addr(handle_lookup, offset=arm11_bin_addr),
-            convert_addr(random_stub, offset=arm11_bin_addr),
-            convert_addr(svc_handler_table, offset=arm11_bin_addr),
-            convert_addr(svc_acl_check, offset=arm11_bin_addr),
+            convert_addr(handle_lookup, offset=arm11_section_addr),
+            convert_addr(random_stub, offset=arm11_section_addr),
+            convert_addr(svc_handler_table, offset=arm11_section_addr),
+            convert_addr(svc_acl_check, offset=arm11_section_addr),
             convert_addr(ktimer_pool_head, addend=0),
             convert_addr(ktimer_pool_size, addend=0),
             convert_addr(ktimer_pool_offset, addend=0),
