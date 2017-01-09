@@ -178,11 +178,11 @@ with open(sys.argv[1], 'rb') as r:
     native_firm = r.read()
     arm11_section_addr, arm11bin = read_firm_section(native_firm, 1)
 
-    svc_handler_table = find_svc_handler_table(arm11bin)
     handle_lookup = find_handle_lookup(arm11bin)
     random_stub = find_random_stub(arm11bin)
-    ktimer_pool_head, ktimer_pool_size, ktimer_base_offset = find_ktimer_pool_info(arm11bin)
+    svc_handler_table = find_svc_handler_table(arm11bin)
     svc_acl_check = find_svc_acl_check(arm11bin)
+    ktimer_pool_head, ktimer_pool_size, ktimer_base_offset = find_ktimer_pool_info(arm11bin)
 
     print PRINT_FORMAT % (
             convert_addr(handle_lookup, offset=arm11_section_addr),
