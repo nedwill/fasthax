@@ -41,13 +41,13 @@ void kmemcpy_debug(void *dst, void *src, u32 len) {
   memcpy_dst = dst;
   memcpy_src = src;
   memcpy_len = len;
-  svcMyBackdoor((s32(*)(void)) & memcpy_int);
+  svcDebugBackdoor((s32(*)(void)) & memcpy_int);
 }
 
 void kwriteint_debug(u32 *addr, u32 value) {
   writeint_arg_addr = addr;
   writeint_arg_value = value;
-  svcMyBackdoor((s32(*)(void)) & writeint);
+  svcDebugBackdoor((s32(*)(void)) & writeint);
 }
 
 static void readint() { readint_res = *readint_arg; }
@@ -58,7 +58,7 @@ u32 kreadint_debug(u32 *addr) {
     return 0;
   }
   readint_arg = addr;
-  svcMyBackdoor((s32(*)(void)) & readint);
+  svcDebugBackdoor((s32(*)(void)) & readint);
   return readint_res;
 }
 
@@ -78,7 +78,7 @@ void kwriteint(u32 *addr, u32 value) {
   svcGlobalBackdoor((s32(*)(void)) & writeint);
 }
 
-bool mybackdoor_installed() {
+bool debug_backdoor_installed() {
   /* kwriteint won't have a side effect if it's not installed.
    * that svc is normally callable by userspace but returns
    * an error.
@@ -105,7 +105,7 @@ bool global_backdoor_installed() {
 }
 
 void print_array_wait(char *name, u32 *addr, u32 size) {
-  if (!mybackdoor_installed()) {
+  if (!debug_backdoor_installed()) {
     printf("can't print array, no backdoor\n");
     return;
   }
@@ -138,12 +138,12 @@ static void kernel_get_object_addr() {
 }
 
 void *get_object_addr(Handle handle) {
-  if (!mybackdoor_installed()) {
-    printf("get_object_addr: mybackdoor not installed.\n");
+  if (!debug_backdoor_installed()) {
+    printf("get_object_addr: debug_backdoor not installed.\n");
     return NULL;
   }
   get_object_handle = handle;
-  svcMyBackdoor((s32(*)(void)) & kernel_get_object_addr);
+  svcDebugBackdoor((s32(*)(void)) & kernel_get_object_addr);
   if (get_object_ret) {
     u32 *obj = get_object_ret;
     u32 *refcount_addr = &obj[1];
@@ -173,7 +173,7 @@ void kernel_randomstub(u32 *arg) {
     return;
   }
   randomstub_arg = arg;
-  svcMyBackdoor((s32(*)(void)) & randomstub_wrapper);
+  svcDebugBackdoor((s32(*)(void)) & randomstub_wrapper);
 }
 
 static Result kernel_backdoor(s32 (*callback)(void)) { return callback(); }
