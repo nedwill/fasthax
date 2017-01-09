@@ -86,7 +86,7 @@ def find_ktimer_pool_info(binary):
     # E1 3E A0 E3       MOV     R3, KTIMER_POOL_SIZE
     # E2 2E 82 E2       ADD     R2, R2, KTIMER_BASE_OFFSET_2
     # B4 61 C0 E1       STRH    R6, [R0, #20]
-    # 50 03 9F E5       LDR     R0, =UNKNOWN
+    # 50 03 9F E5       LDR     R0, =KTIMER_POOL_HEAD
     # 3C 10 A0 E3       MOV     R1, #60
     # 54 51 00 EB       BL      0x1FF94738
 
@@ -99,7 +99,8 @@ def find_ktimer_pool_info(binary):
         size = (read_uint(binary, idx + 4) & 0xff) << 4
         offset1 = read_uint(binary, idx) & 0xfff
         offset2 = (read_uint(binary, idx + 8) & 0xff) << 4
-        return size, read_op2_value(offset1) + offset2
+        head = read_uint(binary, idx + 0x368)
+        return head, size, read_op2_value(offset1) + offset2
 
     # maybe >= 9.0
     idx = search(binary,
@@ -110,14 +111,15 @@ def find_ktimer_pool_info(binary):
         size = (read_uint(binary, idx + 4) & 0xff) << 4
         offset1 = read_uint(binary, idx) & 0xfff
         offset2 = (read_uint(binary, idx + 8) & 0xff) << 4
-        return size, read_op2_value(offset1) + offset2
+        head = read_uint(binary, idx + 0x360)
+        return head, size, read_op2_value(offset1) + offset2
 
     # o3ds patterns
     # 12 2B 84 E2       ADD     R2, R4, KTIMER_BASE_OFFSET_1
     # 54 33 9F E5       LDR     R3, =KTIMER_POOL_SIZE
     # 92 2F 82 E2       ADD     R2, R2, KTIMER_BASE_OFFSET_2
     # B4 61 C0 E1       STRH    R6, [R0, #20]
-    # 4C 03 9F E5       LDR     R0, =UNKNOWN
+    # 4C 03 9F E5       LDR     R0, =KTIMER_POOL_HEAD
     # 3C 10 A0 E3       MOV     R1, #60
     # E3 4F 00 EB       BL      0x1FF9416c
 
@@ -130,7 +132,8 @@ def find_ktimer_pool_info(binary):
         size = read_uint(binary, idx + 0x360)
         offset1 = read_uint(binary, idx) & 0xfff
         offset2 = read_uint(binary, idx + 8) & 0xfff
-        return size, read_op2_value(offset1) + read_op2_value(offset2)
+        head = read_uint(binary, idx + 0x364)
+        return head, size, read_op2_value(offset1) + read_op2_value(offset2)
 
     # maybe >= 9.0
     idx = search(binary,
@@ -141,98 +144,11 @@ def find_ktimer_pool_info(binary):
         size = read_uint(binary, idx + 0x36c)
         offset1 = read_uint(binary, idx) & 0xfff
         offset2 = read_uint(binary, idx + 8) & 0xfff
-        return size, read_op2_value(offset1) + read_op2_value(offset2)
+        head = read_uint(binary, idx + 0x370)
+        return head, size, read_op2_value(offset1) + read_op2_value(offset2)
 
     # need to check
-    return None, None
-
-def find_ktimer_pool_head_and_object_size(binary):
-    # n3ds >= 11.0 and o3ds >= 11.0
-    # FF 10 C4 E3       BIN     R1, R4, #0xFF
-    # 01 90 81 E3       ORR     R9, R1, #1
-    # 79 00 AF E6       SXTB    R0, R9
-    # 00 00 50 E3       CMP     R0, #0
-    # F4 00 9F 05       LDREQ   R0, =0xC8601810
-    # 38 00 00 0A       BEQ     0x1FF878E8
-    # F0 00 9F E5       LDR     R0, =KTIMER_POOL_HEAD
-    # 61 53 00 EB       BL      0x1FF9C594
-    # 00 40 B0 E1       MOVS    R4, R0
-    # 00 B0 A0 E3       MOV     R11, #0
-    # 0C 00 00 0A       BEQ     0x1FF8784C
-    # 00 10 A0 E1       MOV     R1, R0
-    # 3C 00 A0 E3       MOV     R0, KTIMER_OBJECT_SIZE
-    # 01 00 A0 E1       MOV     R0, R1
-    # 00 00 50 E3       CMD     R0, #0
-    # 00 F0 20 E3       NOP
-    idx = search(binary,
-                 '\xff\x10\xc4\xe3\x01\x90\x81\xe3\x79\x00\xaf\xe6\x00\x00\x50\xe3'
-                 '\xf4\x00\x9f\x05\x38\x00\x00\x0a\xf0\x00\x9f\xe5\x00\x50\x00\xeb'
-                 '\x00\x40\xb0\xe1\x00\xb0\xa0\xe3\x0c\x00\x00\x0a\x00\x10\xa0\xe1'
-                 '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
-                 masks=((0x1C, ~0xFFF),))
-
-    if idx:
-        size = read_uint(binary, idx + 0x30) & 0xff
-        addr = read_uint(binary, idx + 0x110)
-        return addr, size
-
-    # n3ds >= 9.0
-    # FF 10 C4 E3       BIN     R1, R4, #0xFF
-    # 01 80 81 E3       ORR     R8, R1, #1
-    # 78 00 AF E6       SXTB    R0, R8
-    # 00 00 50 E3       CMP     R0, #0
-    # F0 00 9F 05       LDREQ   R0, =0xC8601810
-    # 38 00 00 0A       BEQ     0x1FF878E4
-    # EC 00 9F E5       LDR     R0, =KTIMER_POOL_HEAD
-    # 34 52 00 EB       BL      0x1FF9C0DC
-    # 00 40 B0 E1       MOVS    R4, R0
-    # 00 B0 A0 E3       MOV     R11, #0
-    # 0C 00 00 0A       BEQ     0x1FF87848
-    # 00 10 A0 E1       MOV     R1, R0
-    # 3C 00 A0 E3       MOV     R0, KTIMER_OBJECT_SIZE
-    # 01 00 A0 E1       MOV     R0, R1
-    # 00 00 50 E3       CMD     R0, #0
-    # 00 F0 20 E3       NOP
-    idx = search(binary,
-                 '\xff\x10\xc4\xe3\x01\x80\x81\xe3\x78\x00\xaf\xe6\x00\x00\x50\xe3'
-                 '\xf0\x00\x9f\x05\x38\x00\x00\x0a\xec\x00\x9f\xe5\x00\x50\x00\xeb'
-                 '\x00\x40\xb0\xe1\x00\xb0\xa0\xe3\x0c\x00\x00\x0a\x00\x10\xa0\xe1'
-                 '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
-                 masks=((0x1C, ~0xFFF),))
-    if idx:
-        size = read_uint(binary, idx + 0x30) & 0xff
-        addr = read_uint(binary, idx + 0x10c)
-        return addr, size
-
-    # o3ds >= 9.0
-    # FF 10 C4 E3       BIN     R1, R4, #0xFF
-    # 01 80 81 E3       ORR     R8, R1, #1
-    # 78 00 AF E6       SXTB    R0, R8
-    # 00 00 50 E3       CMP     R0, #0
-    # F0 00 9F 05       LDREQ   R0, =0xC8601810
-    # 38 00 00 0A       BEQ     0x1FF87724
-    # EC 00 9F E5       LDR     R0, =KTIMER_POOL_HEAD
-    # 7C 4F 00 EB       BL      0x1FF9B43C
-    # 00 40 B0 E1       MOVS    R4, R0
-    # 00 B0 A0 E3       MOV     R11, #0
-    # 0C 00 00 0A       BEQ     0x1FF87688
-    # 00 10 A0 E1       MOV     R1, R0
-    # 3C 00 A0 E3       MOV     R0, KTIMER_OBJECT_SIZE
-    # 01 00 A0 E1       MOV     R0, R1
-    # 00 00 50 E3       CMD     R0, #0
-    # 00 F0 20 E3       NOP
-    idx = search(binary,
-                 '\xff\x10\xc4\xe3\x01\x80\x81\xe3\x78\x00\xaf\xe6\x00\x00\x50\xe3'
-                 '\xf0\x00\x9f\x05\x38\x00\x00\x0a\xec\x00\x9f\xe5\x00\x40\x00\xeb'
-                 '\x00\x40\xb0\xe1\x00\xb0\xa0\xe3\x0c\x00\x00\x0a\x00\x10\xa0\xe1'
-                 '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
-                 masks=((0x1C, ~0xFFF),))
-    if idx:
-        size = read_uint(binary, idx + 0x30) & 0xff
-        addr = read_uint(binary, idx + 0x10c)
-        return addr, size
-
-    return None, None
+    return None, None, None
 
 def check_or_dead(addr):
     return addr or 0xdead
@@ -265,8 +181,7 @@ with open(sys.argv[1], 'rb') as r:
     svc_handler_table = find_svc_handler_table(arm11bin)
     handle_lookup = find_handle_lookup(arm11bin)
     random_stub = find_random_stub(arm11bin)
-    ktimer_pool_size, ktimer_pool_offset = find_ktimer_pool_info(arm11bin)
-    ktimer_pool_head, ktimer_object_size = find_ktimer_pool_head_and_object_size(arm11bin)
+    ktimer_pool_head, ktimer_pool_size, ktimer_base_offset = find_ktimer_pool_info(arm11bin)
     svc_acl_check = find_svc_acl_check(arm11bin)
 
     print PRINT_FORMAT % (
@@ -276,5 +191,5 @@ with open(sys.argv[1], 'rb') as r:
             convert_addr(svc_acl_check, offset=arm11_section_addr),
             convert_addr(ktimer_pool_head, addend=0),
             convert_addr(ktimer_pool_size, addend=0),
-            convert_addr(ktimer_pool_offset, addend=0),
+            convert_addr(ktimer_base_offset, addend=0),
     )
