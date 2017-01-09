@@ -118,29 +118,6 @@ bool initialize_timer_state() {
     svcCancelTimer(timer);
   }
 
-  /* I think we always win this now. */
-  /*
-  if (debug_backdoor_installed()) {
-    u64 initial = 0;
-    if (!get_timer_value(timer2, &initial, NULL)) {
-      printf("set_timer: get_timer_value failed\n");
-      svcCloseHandle(timer2);
-      svcCloseHandle(timer);
-      return false;
-    }
-
-    u32 target = (u32)((initial) >> 32);
-    if (target != (u32)(void*)RandomStub) {
-      printf("warning: got bad target: %lx\n", target);
-      printf("returning early for debug purposes\n");
-      return false;
-    } else {
-      printf("got good target!\n");
-    }
-    wait_for_user();
-  }
-  */
-
   /* alloced: timer1 */
   /* freed: timer2 -> ... */
   res = svcCloseHandle(timer2);
