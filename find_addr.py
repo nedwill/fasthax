@@ -118,7 +118,7 @@ def find_ktimer_pool_info(binary):
 
     # o3ds patterns
     # 12 2B 84 E2       ADD     R2, R4, KTIMER_BASE_OFFSET_1
-    # 54 33 9F E5       LDR     R3, =KTIMER_POOL_SIZE_PTR
+    # 54 33 9F E5       LDR     R3, =KTIMER_POOL_SIZE
     # 92 2F 82 E2       ADD     R2, R2, KTIMER_BASE_OFFSET_2
     # B4 61 C0 E1       STRH    R6, [R0, #20]
     # 4C 03 9F E5       LDR     R0, =UNKNOWN
@@ -127,15 +127,15 @@ def find_ktimer_pool_info(binary):
 
     # maybe >= 11.0
     idx = search(binary,
-                 '\x00\x20\x84\xe2\x00\x00\x9f\xe5\x00\x2f\x82\xe2\xb4\x61\xc0\xe1'
+                 '\x00\x20\x84\xe2\x00\x30\x9f\xe5\x00\x2f\x82\xe2\xb4\x61\xc0\xe1'
                  '\x4c\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
-                 masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)),
+                 masks=((0x0, ~0xfff), (0x4, ~0xfff), (0x8, ~0xff), (0x18, ~0xffff)),
                  return_offset=True)
     if idx:
-        size_ptr = struct.unpack('I', (binary[idx + 4:idx + 8]))[0]
+        size = struct.unpack('I', (binary[idx + 0x360:idx + 0x360 + 4]))[0]
         offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
         offset2 = struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xfff
-        return 0xdead, read_op2_value(offset1) + read_op2_value(offset2)
+        return size, read_op2_value(offset1) + read_op2_value(offset2)
 
     # maybe >= 9.0
     idx = search(binary,
@@ -144,10 +144,10 @@ def find_ktimer_pool_info(binary):
                  masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)),
                  return_offset=True)
     if idx:
-        size_ptr = struct.unpack('I', (binary[idx + 4:idx + 8]))[0]
+        size = struct.unpack('I', (binary[idx + 0x36c:idx + 0x36c + 4]))[0]
         offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
         offset2 = struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xfff
-        return 0xdead, read_op2_value(offset1) + read_op2_value(offset2)
+        return size, read_op2_value(offset1) + read_op2_value(offset2)
 
     # need to check
     return None, None
