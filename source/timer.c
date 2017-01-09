@@ -5,12 +5,11 @@
 #include <stdio.h>
 #include <3ds.h>
 
+#include "common.h"
 #include "timer.h"
 #include "backdoor.h"
 #include "cleanup.h"
 #include "util.h"
-
-extern void *RandomStub;
 
 static u64 get_tick_offset() {
   /* To find this: run svcGetSystemTick, then do SetTimer(timer, 100000, 100000)
@@ -106,7 +105,7 @@ bool initialize_timer_state() {
 
   set_first_timer(timer);
 
-  if (!set_timer(timer2, (u32)RandomStub)) {
+  if (!set_timer(timer2, table->random_stub)) {
     printf("failed to set timer\n");
     svcCloseHandle(timer2);
     svcCloseHandle(timer);
