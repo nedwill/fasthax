@@ -31,10 +31,10 @@ static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offse
 
   Result res;
 
-  u64 timeout = ((u64)(kernel_callback_int - 0x80000000) << 32);
   u64 offset = get_tick_offset();
+  u64 timeout = ((u64)(kernel_callback_int - 0x80000000) << 32) + 1 - offset;
   /* land as far back as possible */
-  u64 kernel_callback_offset = 0x8000000000000000 - offset;
+  u64 kernel_callback_offset = 0x8000000000000000 - 1;
   if ((s64)kernel_callback_offset < 0 || (s64)timeout < 0) {
     printf("oops: kernel_callback_offset < 0 or timeout < 0\n");
     return false;
@@ -57,10 +57,9 @@ static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offse
     return false;
   }
 
-  res = svcCancelTimer(timer);
-  if (res < 0) {
-    printf("failed to cancel timer\n");
-    return false;
+  /* keep cancelling to avoid race */
+  for (int i = 0; i < 256; i++) {
+    svcCancelTimer(timer);
   }
 
   *offset_res = offset;
@@ -145,12 +144,9 @@ bool initialize_timer_state() {
     return false;
   }
 
-  res = svcCancelTimer(timer);
-  if (res < 0) {
-    printf("failed to cancel timer\n");
-    svcCloseHandle(timer2);
-    svcCloseHandle(timer);
-    return false;
+  /* keep cancelling */
+  for (int i = 0; i < 256; i++) {
+    svcCancelTimer(timer);
   }
 
   /* I think we always win this now. */
