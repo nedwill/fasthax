@@ -17,7 +17,7 @@ int main() {
 
   gspWaitForVBlank();
 
-  if (set_timer_test()) {
+  if (k11_exploit()) {
     printf("set_timer_test succeeded!\n");
   } else {
     printf("set_timer_test failed!\n");

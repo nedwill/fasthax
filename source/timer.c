@@ -31,21 +31,9 @@ static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offse
 
   Result res;
 
-  u64 timeout1 = 0x100000000 | kernel_callback_int;
-  u32 carry = timeout1 % 3;
-  timeout1 /= 3;
-  u32 intermediate = (u32)timeout1;
-
-  u64 timeout = ((u64)(intermediate - 0x80000000) << 32);
-  switch (carry) {
-    case 1:
-      timeout += 0x55555556;
-      break;
-    case 2:
-      timeout += 0xaaaaaaab;
-      break;
-  }
+  u64 timeout = ((u64)(kernel_callback_int - 0x80000000) << 32);
   u64 offset = get_tick_offset();
+  /* land as far back as possible */
   u64 kernel_callback_offset = 0x8000000000000000 - offset;
   if ((s64)kernel_callback_offset < 0 || (s64)timeout < 0) {
     printf("oops: kernel_callback_offset < 0 or timeout < 0\n");
@@ -76,6 +64,23 @@ static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offse
   }
 
   *offset_res = offset;
+  return true;
+}
+
+static bool set_first_timer(Handle timer) {
+  /* land as far forward as possible */
+  u64 kernel_callback_offset = 0x8000000000000000 - 1;
+  if ((s64)kernel_callback_offset < 0) {
+    printf("oops: kernel_callback_offset < 0\n");
+    return false;
+  }
+
+  /* land slightly forward */
+  Result res = svcSetTimer(timer, kernel_callback_offset, 1000000);
+  if (res < 0) {
+    printf("failed to set timer: 0x%lx\n", res);
+    return false;
+  }
   return true;
 }
 
@@ -114,7 +119,7 @@ bool initialize_timer_state() {
   Handle timer;
 
   /* alloced: timer1 */
-  res = svcCreateTimer(&timer, RESET_PULSE);
+  res = svcCreateTimer(&timer, RESET_STICKY);
   if (res < 0) {
     printf("failed to create timer1\n");
     return false;
@@ -131,8 +136,18 @@ bool initialize_timer_state() {
 
   svcCancelTimer(timer2);
 
+  set_first_timer(timer);
+
   if (!set_timer(timer2, (u32)RandomStub)) {
     printf("failed to set timer\n");
+    svcCloseHandle(timer2);
+    svcCloseHandle(timer);
+    return false;
+  }
+
+  res = svcCancelTimer(timer);
+  if (res < 0) {
+    printf("failed to cancel timer\n");
     svcCloseHandle(timer2);
     svcCloseHandle(timer);
     return false;
