@@ -207,6 +207,7 @@ bool set_timer_test() {
     printf("attempt[%d]: (0x%llx, 0x%lx, 0x%llx)\n", i+1, feedback, target, initial);
     if (target != real_target) {
       wait_for_user();
+      return false;
     }
   }
 
