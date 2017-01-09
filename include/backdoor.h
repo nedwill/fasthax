@@ -21,8 +21,8 @@ void kernel_randomstub(u32 *arg);
 bool get_timer_value(Handle timer, u64 *initial, u64 *interval);
 
 /* Real backdoor */
-u32 kreadint_real(u32 *addr);
-void kwriteint_real(u32 *addr, u32 value);
+u32 kreadint(u32 *addr);
+void kwriteint(u32 *addr, u32 value);
 bool global_backdoor_installed(void);
 /* Used in real exploit, must be called from kernel mode. */
 void install_global_backdoor(void);

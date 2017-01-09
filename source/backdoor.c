@@ -62,7 +62,7 @@ u32 kreadint_debug(u32 *addr) {
   return readint_res;
 }
 
-u32 kreadint_real(u32 *addr) {
+u32 kreadint(u32 *addr) {
   if (addr == 0) {
     printf("kreadint(NULL) -> 0\n");
     return 0;
@@ -72,7 +72,7 @@ u32 kreadint_real(u32 *addr) {
   return readint_res;
 }
 
-void kwriteint_real(u32 *addr, u32 value) {
+void kwriteint(u32 *addr, u32 value) {
   writeint_arg_addr = addr;
   writeint_arg_value = value;
   svcGlobalBackdoor((s32(*)(void)) & writeint);
