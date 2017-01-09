@@ -3,7 +3,7 @@ import struct
 
 PRINT_FORMAT = '{SYSTEM_VERSION(0, 00, 0},  0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%04X, 0x%04X},  // 00.0'
 
-def search(binary, pattern, skip=0, masks=None, return_offset=False, start_offset=0):
+def search(binary, pattern, skip=0, masks=None, return_offset=True, start_offset=0):
     pattern_len = len(pattern)
     for idx in xrange(start_offset, len(binary) - pattern_len):
         b = binary[idx : idx + pattern_len]
@@ -28,8 +28,7 @@ def find_handle_lookup(binary):
     # 9F 2F 90 E1       LDREX   R2, [R0]
     addr = search(binary,
                   '\xf0\x41\x2d\xe9\x01\x50\xa0\xe1\x00\x60\xa0\xe1\xe8\x10\x9f\xe5'
-                  '\x10\x00\x80\xe2\x00\x40\xa0\xe1\x00\x10\x91\xe5\x9f\x2f\x90\xe1',
-                  return_offset=True)
+                  '\x10\x00\x80\xe2\x00\x40\xa0\xe1\x00\x10\x91\xe5\x9f\x2f\x90\xe1')
     return addr
 
 def find_random_stub(binary):
@@ -41,15 +40,12 @@ def find_random_stub(binary):
     # 1E FF 2F E1       BX      LR
     addr = search(binary,
                   '\x0c\x10\x91\xe5\x00\x10\x80\xe5\x1e\xff\x2f\xe1'
-                  '\x0c\x10\x81\xe2\x00\x10\x80\xe5\x1e\xff\x2f\xe1',
-                  return_offset=True)
+                  '\x0c\x10\x81\xe2\x00\x10\x80\xe5\x1e\xff\x2f\xe1')
     return addr
 
 def find_svc_acl_check(binary):
     # 1B 0E 1A E1       TST     R10, R11,LSL LR
-    addr = search(binary,
-                  '\x1b\x0e\x1a\xe1',
-                  return_offset=True)
+    addr = search(binary, '\x1b\x0e\x1a\xe1')
     return addr
 
 def find_svc_handler_table(binary):
@@ -68,8 +64,7 @@ def find_svc_handler_table(binary):
                   '\x00\x00\xf0\xff\x00\x00\xf0\xff\x00\x00\xf0\xff\x00\x00\xf0\xff',
                   skip=0x1C,
                   masks=((0x20, 0xfff00000), (0x24, 0xfff00000),
-                         (0x28, 0xfff00000), (0x2c, 0xfff00000)),
-                  return_offset=True)
+                         (0x28, 0xfff00000), (0x2c, 0xfff00000)))
     return addr
 
 def read_op2_value(op2):
@@ -98,8 +93,7 @@ def find_ktimer_pool_info(binary):
     idx = search(binary,
                  '\x00\x20\x84\xe2\x00\x3e\xa0\xe3\x00\x2e\x82\xe2\xb4\x61\xc0\xe1'
                  '\x50\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
-                 masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)),
-                 return_offset=True)
+                 masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
         size = (struct.unpack('I', (binary[idx + 4:idx + 8]))[0] & 0xff) << 4
         offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
@@ -110,8 +104,7 @@ def find_ktimer_pool_info(binary):
     idx = search(binary,
                  '\x00\x20\x84\xe2\x00\x3e\xa0\xe3\x00\x2e\x82\xe2\xb4\x61\xc0\xe1'
                  '\x48\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
-                 masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)),
-                 return_offset=True)
+                 masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
         size = (struct.unpack('I', (binary[idx + 4:idx + 8]))[0] & 0xff) << 4
         offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
@@ -131,8 +124,7 @@ def find_ktimer_pool_info(binary):
     idx = search(binary,
                  '\x00\x20\x84\xe2\x00\x30\x9f\xe5\x00\x2f\x82\xe2\xb4\x61\xc0\xe1'
                  '\x4c\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
-                 masks=((0x0, ~0xfff), (0x4, ~0xfff), (0x8, ~0xff), (0x18, ~0xffff)),
-                 return_offset=True)
+                 masks=((0x0, ~0xfff), (0x4, ~0xfff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
         size = struct.unpack('I', (binary[idx + 0x360:idx + 0x360 + 4]))[0]
         offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
@@ -143,8 +135,7 @@ def find_ktimer_pool_info(binary):
     idx = search(binary,
                  '\x00\x20\x84\xe2\x00\x00\x9f\xe5\x00\x2f\x82\xe2\xb4\x61\xc0\xe1'
                  '\x58\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
-                 masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)),
-                 return_offset=True)
+                 masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
         size = struct.unpack('I', (binary[idx + 0x36c:idx + 0x36c + 4]))[0]
         offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
@@ -177,8 +168,7 @@ def find_ktimer_pool_head_and_object_size(binary):
                  '\xf4\x00\x9f\x05\x38\x00\x00\x0a\xf0\x00\x9f\xe5\x00\x50\x00\xeb'
                  '\x00\x40\xb0\xe1\x00\xb0\xa0\xe3\x0c\x00\x00\x0a\x00\x10\xa0\xe1'
                  '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
-                 masks=((0x1C, ~0xFFF),),
-                 return_offset=True)
+                 masks=((0x1C, ~0xFFF),))
 
     if idx:
         size = struct.unpack('I', (binary[idx + 0x30:idx + 0x30 + 4]))[0] & 0xff
@@ -207,8 +197,7 @@ def find_ktimer_pool_head_and_object_size(binary):
                  '\xf0\x00\x9f\x05\x38\x00\x00\x0a\xec\x00\x9f\xe5\x00\x50\x00\xeb'
                  '\x00\x40\xb0\xe1\x00\xb0\xa0\xe3\x0c\x00\x00\x0a\x00\x10\xa0\xe1'
                  '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
-                 masks=((0x1C, ~0xFFF),),
-                 return_offset=True)
+                 masks=((0x1C, ~0xFFF),))
     if idx:
         size = struct.unpack('I', (binary[idx + 0x30:idx + 0x30 + 4]))[0] & 0xff
         addr = struct.unpack('I', (binary[idx + 0x10c:idx + 0x10c + 4]))[0]
@@ -236,8 +225,7 @@ def find_ktimer_pool_head_and_object_size(binary):
                  '\xf0\x00\x9f\x05\x38\x00\x00\x0a\xec\x00\x9f\xe5\x00\x40\x00\xeb'
                  '\x00\x40\xb0\xe1\x00\xb0\xa0\xe3\x0c\x00\x00\x0a\x00\x10\xa0\xe1'
                  '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
-                 masks=((0x1C, ~0xFFF),),
-                 return_offset=True)
+                 masks=((0x1C, ~0xFFF),))
     if idx:
         size = struct.unpack('I', (binary[idx + 0x30:idx + 0x30 + 4]))[0] & 0xff
         addr = struct.unpack('I', (binary[idx + 0x10c:idx + 0x10c + 4]))[0]
