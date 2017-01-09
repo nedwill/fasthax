@@ -23,9 +23,9 @@ static u64 get_tick_offset() {
   return offset;
 }
 
-static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offset_res) {
+bool set_timer(Handle timer, u32 kernel_callback_int) {
   if (!(kernel_callback_int & 0x80000000)) {
-    printf("set_timer_internal called with non-negative arg\n");
+    printf("set_timer called with non-negative arg\n");
     return false;
   }
 
@@ -62,7 +62,6 @@ static bool set_timer_internal(Handle timer, u32 kernel_callback_int, u64 *offse
     svcCancelTimer(timer);
   }
 
-  *offset_res = offset;
   return true;
 }
 
@@ -80,36 +79,6 @@ static bool set_first_timer(Handle timer) {
     printf("failed to set timer: 0x%lx\n", res);
     return false;
   }
-  return true;
-}
-
-bool set_timer(Handle timer, u32 kernel_callback_int) {
-  if ((kernel_callback_int & 0x80000000) == 0) {
-    printf("set_timer only supports kernel (negative) addresses\n");
-    return false;
-  }
-
-  u64 offset_res;
-  if (!set_timer_internal(timer, kernel_callback_int, &offset_res)) {
-    printf("set_timer_internal failed\n");
-    return false;
-  }
-
-  return true;
-}
-
-bool set_timer_feedback(Handle timer, u32 kernel_callback_int, u64 *feedback) {
-  if ((kernel_callback_int & 0x80000000) == 0) {
-    printf("set_timer only supports kernel (negative) addresses\n");
-    printf("got: 0x%lx\n", kernel_callback_int);
-    return false;
-  }
-
-  if (!set_timer_internal(timer, kernel_callback_int, feedback)) {
-    printf("set_timer_internal failed\n");
-    return false;
-  }
-
   return true;
 }
 
