@@ -114,7 +114,7 @@ bool initialize_timer_state() {
   Handle timer;
 
   /* alloced: timer1 */
-  res = svcCreateTimer(&timer, 0);
+  res = svcCreateTimer(&timer, RESET_PULSE);
   if (res < 0) {
     printf("failed to create timer1\n");
     return false;
@@ -122,7 +122,7 @@ bool initialize_timer_state() {
 
   /* alloced: timer1, timer2 */
   Handle timer2;
-  res = svcCreateTimer(&timer2, 2);
+  res = svcCreateTimer(&timer2, RESET_STICKY);
   if (res < 0) {
     printf("failed to create timer2\n");
     svcCloseHandle(timer);
