@@ -3,19 +3,20 @@ import struct
 
 PRINT_FORMAT = '{SYSTEM_VERSION(0, 00, 0},  0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%04X, 0x%04X},  // 00.0'
 
-def search(binary, pattern, skip=0, masks=None, return_offset=True, start_offset=0):
+def read_uint(binary, offset):
+    return struct.unpack('I', (binary[offset:offset + 4]))[0]
+
+def search(binary, pattern, skip=0, masks=None, start_offset=0):
     pattern_len = len(pattern)
     for idx in xrange(start_offset, len(binary) - pattern_len):
         b = binary[idx : idx + pattern_len]
         if masks:
             for offset, maskbit in masks:
-                target_uint = struct.unpack('I', (b[offset:offset + 4]))[0]
+                target_uint = read_uint(b, offset)
                 b = b[:offset] + struct.pack('I', target_uint & maskbit) + b[offset + 4:]
         if b != pattern:
             continue
-        if return_offset:
-            return idx + skip
-        return struct.unpack('I', (binary[idx + skip: idx + skip + 4]))[0]
+        return idx + skip
 
 def find_handle_lookup(binary):
     # F0 41 2D E9       STMFD   Sp!, {R4-R8,LR}
@@ -95,9 +96,9 @@ def find_ktimer_pool_info(binary):
                  '\x50\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
                  masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
-        size = (struct.unpack('I', (binary[idx + 4:idx + 8]))[0] & 0xff) << 4
-        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
-        offset2 = (struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xff) << 4
+        size = (read_uint(binary, idx + 4) & 0xff) << 4
+        offset1 = read_uint(binary, idx) & 0xfff
+        offset2 = (read_uint(binary, idx + 8) & 0xff) << 4
         return size, read_op2_value(offset1) + offset2
 
     # maybe >= 9.0
@@ -106,9 +107,9 @@ def find_ktimer_pool_info(binary):
                  '\x48\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
                  masks=((0x0, ~0xfff), (0x4, ~0xff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
-        size = (struct.unpack('I', (binary[idx + 4:idx + 8]))[0] & 0xff) << 4
-        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
-        offset2 = (struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xff) << 4
+        size = (read_uint(binary, idx + 4) & 0xff) << 4
+        offset1 = read_uint(binary, idx) & 0xfff
+        offset2 = (read_uint(binary, idx + 8) & 0xff) << 4
         return size, read_op2_value(offset1) + offset2
 
     # o3ds patterns
@@ -126,9 +127,9 @@ def find_ktimer_pool_info(binary):
                  '\x4c\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
                  masks=((0x0, ~0xfff), (0x4, ~0xfff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
-        size = struct.unpack('I', (binary[idx + 0x360:idx + 0x360 + 4]))[0]
-        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
-        offset2 = struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xfff
+        size = read_uint(binary, idx + 0x360)
+        offset1 = read_uint(binary, idx) & 0xfff
+        offset2 = read_uint(binary, idx + 8) & 0xfff
         return size, read_op2_value(offset1) + read_op2_value(offset2)
 
     # maybe >= 9.0
@@ -137,9 +138,9 @@ def find_ktimer_pool_info(binary):
                  '\x58\x03\x9f\xe5\x3c\x10\xa0\xe3\x00\x00\x00\xeb',
                  masks=((0x0, ~0xfff), (0x4, ~0xffff), (0x8, ~0xff), (0x18, ~0xffff)))
     if idx:
-        size = struct.unpack('I', (binary[idx + 0x36c:idx + 0x36c + 4]))[0]
-        offset1 = struct.unpack('I', (binary[idx:idx + 4]))[0] & 0xfff
-        offset2 = struct.unpack('I', (binary[idx + 8:idx + 12]))[0] & 0xfff
+        size = read_uint(binary, idx + 0x36c)
+        offset1 = read_uint(binary, idx) & 0xfff
+        offset2 = read_uint(binary, idx + 8) & 0xfff
         return size, read_op2_value(offset1) + read_op2_value(offset2)
 
     # need to check
@@ -171,8 +172,8 @@ def find_ktimer_pool_head_and_object_size(binary):
                  masks=((0x1C, ~0xFFF),))
 
     if idx:
-        size = struct.unpack('I', (binary[idx + 0x30:idx + 0x30 + 4]))[0] & 0xff
-        addr = struct.unpack('I', (binary[idx + 0x110:idx + 0x110 + 4]))[0]
+        size = read_uint(binary, idx + 0x30) & 0xff
+        addr = read_uint(binary, idx + 0x110)
         return addr, size
 
     # n3ds >= 9.0
@@ -199,8 +200,8 @@ def find_ktimer_pool_head_and_object_size(binary):
                  '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
                  masks=((0x1C, ~0xFFF),))
     if idx:
-        size = struct.unpack('I', (binary[idx + 0x30:idx + 0x30 + 4]))[0] & 0xff
-        addr = struct.unpack('I', (binary[idx + 0x10c:idx + 0x10c + 4]))[0]
+        size = read_uint(binary, idx + 0x30) & 0xff
+        addr = read_uint(binary, idx + 0x10c)
         return addr, size
 
     # o3ds >= 9.0
@@ -227,8 +228,8 @@ def find_ktimer_pool_head_and_object_size(binary):
                  '\x3c\x00\xa0\xe3\x01\x00\xa0\xe1\x00\x00\x50\xe3\x00\xf0\x20\xe3',
                  masks=((0x1C, ~0xFFF),))
     if idx:
-        size = struct.unpack('I', (binary[idx + 0x30:idx + 0x30 + 4]))[0] & 0xff
-        addr = struct.unpack('I', (binary[idx + 0x10c:idx + 0x10c + 4]))[0]
+        size = read_uint(binary, idx + 0x30) & 0xff
+        addr = read_uint(binary, idx + 0x10c)
         return addr, size
 
     return None, None
@@ -243,9 +244,9 @@ def convert_addr(addr, offset=0, addend=(-0x1ff80000 + 0xfff00000)):
 
 def read_section_info(native_firm, idx):
     offset = idx * 0x30 + 0x40 # 0x40 - section info start
-    section_offset = struct.unpack('I', native_firm[offset:offset + 4])[0]
-    section_addr_offset = struct.unpack('I', native_firm[offset + 4:offset+8])[0]
-    section_size = struct.unpack('I', native_firm[offset + 8:offset+12])[0]
+    section_offset = read_uint(native_firm, offset)
+    section_addr_offset = read_uint(native_firm, offset + 4)
+    section_size = read_uint(native_firm, offset + 8)
     return section_offset, section_addr_offset, section_size
 
 if len(sys.argv) < 2:
