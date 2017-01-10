@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "common.h"
 #include "backdoor.h"
 #include "util.h"
 
@@ -25,9 +26,6 @@ static void *memcpy_dst;
 static u64 memcpy_len;
 static Handle get_object_handle = 0;
 static void *get_object_ret = NULL;
-void *(*handle_lookup_kern)(void *, u32);
-void **svc_handler_table_writable;
-u32 *svc_acl_check_writable;
 
 extern bool is_n3ds;
 
@@ -134,6 +132,8 @@ static void kernel_get_object_addr() {
   Handle handle = get_object_handle;
   u32 current_process = *(u32 *)CURRENT_PROCESS;
   u32 process_handle_table = current_process + HANDLE_TABLE_OFFSET;
+
+  void *(*handle_lookup_kern)(void *, u32) = (void *)table->handle_lookup;
   get_object_ret = handle_lookup_kern((void *)process_handle_table, handle);
 }
 
@@ -157,14 +157,14 @@ void *get_object_addr(Handle handle) {
   return get_object_ret;
 }
 
-unsigned int (*RandomStub)(u32 *, u32 *);
 static void *randomstub_arg = NULL;
 
 static void randomstub_wrapper() {
   if (!randomstub_arg) {
     return;
   }
-  RandomStub(randomstub_arg, (void*)RandomStub);
+  unsigned int (*RandomStub)(u32 *, u32 *) = (void*)table->random_stub;
+  RandomStub(randomstub_arg, (void*)table->random_stub);
 }
 
 void kernel_randomstub(u32 *arg) {
@@ -187,15 +187,17 @@ void *svc_backdoor_orig = NULL;
 
 /* must be called in kernel mode */
 void install_global_backdoor() {
+  u32 **svc_handler_table_writable = (u32**)CONVERT_VA_L2_TO_L1(table->svc_handler_table);
   if (send_sync_request3_orig == NULL) {
     send_sync_request3_orig = svc_handler_table_writable[SEND_SYNC_REQUEST3];
     svc_backdoor_orig = svc_handler_table_writable[SVC_BACKDOOR_NUM];
   }
-  svc_handler_table_writable[SEND_SYNC_REQUEST3] = &kernel_backdoor;
+  svc_handler_table_writable[SEND_SYNC_REQUEST3] = (u32 *)&kernel_backdoor;
 }
 
 /* must be called in kernel mode */
 void uninstall_global_backdoor() {
+  u32 **svc_handler_table_writable = (u32**)CONVERT_VA_L2_TO_L1(table->svc_handler_table);
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = send_sync_request3_orig;
   svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_backdoor_orig;
 }
@@ -208,6 +210,7 @@ static u8 backdoor_code[40] =
     0x11, 0xFF, 0x2F, 0xE1 };
 
 static void kernel_finalize_global_backdoor() {
+  u32 **svc_handler_table_writable = (u32**)CONVERT_VA_L2_TO_L1(table->svc_handler_table);
   if (svc_handler_table_writable[SVC_BACKDOOR_NUM] == 0) {
     /* copy from waithax */
     u32 *free_space = EXC_VA_START;
@@ -225,6 +228,7 @@ static void kernel_finalize_global_backdoor() {
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_handler_table_writable[SVC_BACKDOOR_NUM];
 
   /* patch out svc acl check */
+  u32 *svc_acl_check_writable = (u32*)CONVERT_VA_L2_TO_L1(table->svc_acl_check);
   *svc_acl_check_writable = 0xE3B0A001; // MOVS R10, #1
 }
 
