@@ -7,7 +7,7 @@
 
 void wait_for_user(void);
 
-void *convertVAToPA(const void *addr);
-void flushEntireCaches(void);
+void *kernel_va_to_pa(const void *addr);
+void flush_caches(void);
 
 #endif /* __UTIL_H */

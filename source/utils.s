@@ -25,9 +25,9 @@ SOFTWARE.
 
 
 @ TuxSH definitely is the bestest
-.global convertVAToPA
-.type   convertVAToPA, %function
-convertVAToPA:
+.global kernel_va_to_pa
+.type   kernel_va_to_pa, %function
+kernel_va_to_pa:
     mov r1, #0x1000
     sub r1, #1
     and r2, r0, r1
@@ -41,9 +41,9 @@ convertVAToPA:
     bx lr
 
 
-.global flushEntireCaches
-.type   flushEntireCaches, %function
-flushEntireCaches:
+.global flush_caches
+.type   flush_caches, %function
+flush_caches:
     mov r0, #0
     mcr p15, 0, r0, c7, c10, 0  @ clean entire DCache
     mov r0, #0
@@ -51,4 +51,3 @@ flushEntireCaches:
     mcr p15, 0, r0, c7, c5,  0  @ invalidate the entire ICache & branch target cache
     mcr p15, 0, r0, c7, c10, 4  @ data synchronization barrier
     bx lr
-

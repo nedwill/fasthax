@@ -11,11 +11,13 @@
 /* overwrite SendSyncRequest3 since it's stubbed but we always have permission */
 #define SEND_SYNC_REQUEST3 0x30
 #define SVC_BACKDOOR_NUM 0x7B
-#define CURRENT_PROCESS 0xFFFF9004
 #define HANDLE_TABLE_OFFSET ((is_n3ds) ? 0xDC : 0xD4)
-
-#define EXC_VA_START  ((u32*)0xFFFF0000)
-#define AXIWRAMDSP_RW_MAPPING_OFFSET (0xDFF00000 - 0x1FF00000)
+/* MOVS R10, #1 */
+#define MOVS_R10_1 0xE3B0A001
+#define EXC_VA_START 0xFFFF0000
+/* this can probably be made larger if we ever fail */
+#define EXC_SIZE 0x1000
+#define EXC_PA_TO_RW(addr) ((addr) + 0xDFF00000 - 0x1FF00000)
 
 static u32 *writeint_arg_addr;
 static u32 writeint_arg_value;
@@ -202,39 +204,75 @@ void uninstall_global_backdoor() {
   svc_handler_table_writable[SVC_BACKDOOR_NUM] = svc_backdoor_orig;
 }
 
-/* adapted from Luma, thanks, just rushing to finish this! */
-static u8 backdoor_code[40] =
+/* adapted from Luma */
+#define BACKDOOR_SIZE 40
+static u8 backdoor_code[BACKDOOR_SIZE] =
   { 0xFF, 0x10, 0xCD, 0xE3, 0x0F, 0x1C, 0x81, 0xE3, 0x28, 0x10, 0x81, 0xE2,
     0x00, 0x20, 0x91, 0xE5, 0x00, 0x60, 0x22, 0xE9, 0x02, 0xD0, 0xA0, 0xE1,
     0x30, 0xFF, 0x2F, 0xE1, 0x03, 0x00, 0xBD, 0xE8, 0x00, 0xD0, 0xA0, 0xE1,
     0x11, 0xFF, 0x2F, 0xE1 };
 
+void *memmem(const void *big, size_t big_len, const void *little, size_t little_len) {
+  if (big == NULL || little == NULL || little_len > big_len) {
+    return NULL;
+  }
+
+  /* stupid C pointer arithmetic */
+  u8 *big_u8 = (u8 *)big;
+  for (size_t i = 0; i < (big_len - little_len); i++) {
+    void *current = (void *)&big_u8[i];
+    if (memcmp(current, little, little_len) == 0) {
+      return current;
+    }
+  }
+
+  return NULL;
+}
+
+/* adapted from waithax.
+ * searches exception handler page for 0xFF*BACKDOOR_SIZE, returns NULL
+ * if not found.
+ */
+static void *find_free_space() {
+  u8 free_pattern[BACKDOOR_SIZE];
+  memset(free_pattern, 0xFF, BACKDOOR_SIZE);
+  return memmem((const void *)EXC_VA_START, EXC_SIZE, free_pattern, BACKDOOR_SIZE);
+}
+
+static bool g_finalize_backdoor_ret = false;
+
 static void kernel_finalize_global_backdoor() {
   u32 **svc_handler_table_writable = (u32**)CONVERT_VA_L2_TO_L1(table->svc_handler_table);
   if (svc_handler_table_writable[SVC_BACKDOOR_NUM] == 0) {
-    /* copy from waithax */
-    u32 *free_space = EXC_VA_START;
+    u32 *free_space = find_free_space();
+    if (free_space == NULL) {
+      g_finalize_backdoor_ret = false;
+      return;
+    }
 
-    while(free_space[0] != 0xFFFFFFFF || free_space[1] != 0xFFFFFFFF)
-      free_space++;
-    u32 *free_space_writable = convertVAToPA(free_space) + AXIWRAMDSP_RW_MAPPING_OFFSET;
+    u32 *free_space_writable = EXC_PA_TO_RW(kernel_va_to_pa(free_space));
 
-    /* write to writable portion */
     memcpy(free_space_writable, backdoor_code, sizeof(backdoor_code));
     svc_handler_table_writable[SVC_BACKDOOR_NUM] = free_space;
-
-    flushEntireCaches();
   }
   svc_handler_table_writable[SEND_SYNC_REQUEST3] = svc_handler_table_writable[SVC_BACKDOOR_NUM];
 
   /* patch out svc acl check */
   u32 *svc_acl_check_writable = (u32*)CONVERT_VA_L2_TO_L1(table->svc_acl_check);
-  *svc_acl_check_writable = 0xE3B0A001; // MOVS R10, #1
+  *svc_acl_check_writable = MOVS_R10_1;
+
+  g_finalize_backdoor_ret = true;
+  flush_caches();
 }
 
 bool finalize_global_backdoor() {
   /* Currently the local backdoor really. This will make itself global :-) */
+  g_finalize_backdoor_ret = false;
   svcGlobalBackdoor((s32(*)(void)) &kernel_finalize_global_backdoor);
+  if (!g_finalize_backdoor_ret) {
+    printf("[-] finalize_global_backdoor failed to find free space\n");
+    return false;
+  }
   /* Check we didn't break things. */
   return global_backdoor_installed();
 }

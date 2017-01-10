@@ -1,6 +1,9 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
+#define CURRENT_KTHREAD 0xFFFF9000
+#define CURRENT_PROCESS 0xFFFF9004
+
 typedef struct version_table {
   u32 kver;
   u32 handle_lookup;

@@ -16,6 +16,7 @@ static u64 get_tick_offset() {
    * or something then lookup the object's initial timer value and compare
    * the recorded svcGetSystemTick value with the KTimer one - 100000.
    * I wrote a helper called `get_timer_value` to make this easier.
+   * Yes this is my very own Carmack function. Did it just for that reason.
    */
   double init = (double)svcGetSystemTick();
   u64 offset = (u64)(3.729786579754653 * init - 4494.765251159668);
@@ -56,7 +57,7 @@ bool set_timer(Handle timer, u32 kernel_callback_int) {
     return false;
   }
 
-  /* keep cancelling to avoid race */
+  /* keep cancelling in a loop since handler thread may be reinstalling */
   for (int i = 0; i < 256; i++) {
     svcCancelTimer(timer);
   }
@@ -103,6 +104,20 @@ bool initialize_timer_state() {
 
   svcCancelTimer(timer2);
 
+  /* The time event handler thread on CORE1 will keep looping fetching the
+   * first element of the (sorted by signed time) linked list and handling
+   * it if it's ready. Because we want to set a negative time, the event
+   * time that we want to set will keep getting incremented since it is always
+   * "ready" (< current time). For the KTimer this means it will add the
+   * interval in a tight loop repeatedly, causing us to miss our value.
+   * To workaround this, from CORE0 (default user thread for this process)
+   * set a timer with a short interval, so that it clogs up the timer event
+   * queue, slowly advancing towards 0. Then schedule the other event to jump
+   * straight to the desired value (0xFFF.............) and wait on it so we
+   * know this happened. Then we cancel the desired timer and then cancel the
+   * dummy timer that's occupying the front of the queue. This eliminates the
+   * last bit of instability from this exploit.
+   */
   set_first_timer(timer);
 
   if (!set_timer(timer2, table->random_stub)) {
@@ -112,7 +127,7 @@ bool initialize_timer_state() {
     return false;
   }
 
-  /* keep cancelling */
+  /* cancel filler timer, in a loop since handler thread may be reinstalling */
   for (int i = 0; i < 256; i++) {
     svcCancelTimer(timer);
   }
