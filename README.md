@@ -1,13 +1,15 @@
 # fasthax
 
 This is an exploit for an ARM11 kernel vulnerability in Nintendo 3DS versions
-<= 11.2. Core 1 (SYSCORE) runs a thread that handles a synchronization event
+<= 11.2.
+
+Core 1 (SYSCORE) runs a thread that handles a synchronization event
 queue. Objects added to the queue do not have their reference count incremented.
 When the thread goes to fetch an object, it locks the scheduler, but this
 doesn't prevent a user thread on core 0 from freeing the timer object, thus
 leading to a UAF. Because a vtable pointer is located at the free pointer
 location, this leads to kernel code execution. Many workarounds are needed for
-stability. Those are documented as part of the codebase.
+stability; those are documented as part of the codebase.
 
 This exploit installs `svcBackdoor` at SVC numbers 0x30 and 0x7b.
 
