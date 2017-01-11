@@ -16,7 +16,7 @@ This exploit installs `svcBackdoor` at SVC numbers 0x30 and 0x7b.
 # Credits
 @nedwill: Vulnerability discovery and exploit code for N3DS USA 11.2, fixes to get 100% stability
 
-@d3m3vilurr: Found offsets for all versions of O3DS/N3DS, many bugfixes, ACL patching]
+@d3m3vilurr: Found offsets for all versions of O3DS/N3DS, many bugfixes, ACL patching
 
 @Steveice10: SVC ACL check patch
 
